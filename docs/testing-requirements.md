@@ -1,74 +1,64 @@
 # CCS Testing Requirements & Procedures
 
-**Version:** 2.1.4
-**Last Updated:** 2025-11-03
+**Version:** 2.4.4
+**Last Updated:** 2025-11-05
 **Status:** Active
 
 ## Overview
 
-This document outlines the comprehensive testing requirements and procedures for the CCS (Claude Code Switch) project. Following these guidelines ensures consistent, reliable, and cross-platform compatible releases.
+This document outlines the comprehensive testing requirements and procedures for the CCS (Claude Code Switch) project. Following these guidelines ensures consistent, reliable, and cross-platform compatible releases across both npm package and shell installer methods.
 
 ## Test Suite Structure
 
 ### Core Test Files
 
-| Test File | Purpose | Coverage | Platforms |
-|-----------|---------|----------|-----------|
-| `tests/uninstall-test.sh` | Uninstall functionality validation | 20 tests | Unix/Linux/macOS |
-| `tests/uninstall-test.ps1` | Uninstall functionality validation | 20 tests | Windows |
-| `tests/edge-cases.sh` | Comprehensive edge case testing | 37 tests | Unix/Linux/macOS |
-| `tests/edge-cases.ps1` | Comprehensive edge case testing | 37 tests | Windows |
+| Test Type | Files | Purpose | Coverage | Platforms |
+|-----------|-------|---------|----------|-----------|
+| **npm Package Tests** | `tests/npm/*.test.js` | npm package functionality | 4 files | Cross-platform |
+| **Unit Tests** | `tests/shared/unit/*.test.js` | Core utilities testing | 1 file | Cross-platform |
+| **Native Shell Tests** | `tests/native/unix/*.sh` | Shell installer testing | 3 files | Unix/Linux/macOS |
+| **Edge Case Tests** | `tests/edge-cases.sh` | Comprehensive edge cases | 1 file | Unix/Linux/macOS |
+| **Comprehensive Testing** | `plans/251105-*/` | 5-phase testing framework | 5 phases | Cross-platform |
 
 ### Test Categories
 
-#### 1. Uninstall Functionality Tests (20 tests)
-**File:** `tests/uninstall-test.sh` / `tests/uninstall-test.ps1`
-
-**Sections:**
-1. **Empty Uninstall (3 tests)**
-   - Command executes without error
-   - Appropriate "nothing to uninstall" messaging
-   - Reports 0 items removed correctly
-
-2. **Install/Uninstall Cycle (5 tests)**
-   - Clean uninstall execution
-   - Removes ccs.md command file
-   - Removes ccs-delegation skill directory
-   - Preserves other commands (non-invasive)
-   - Preserves other skills (non-invasive)
-
-3. **Idempotency (2 tests)**
-   - Second uninstall succeeds
-   - Reports nothing found on subsequent runs
-
-4. **Output Formatting (4 tests)**
-   - Contains box-drawing headers
-   - Shows success messages
-   - Provides reinstallation instructions
-
-5. **Integration Tests (3 tests)**
-   - No profile errors on uninstall
-   - Version command still works
-   - Help command still works
-
-6. **Edge Cases (3 tests)**
-   - Partial installations handled
-   - Missing directories handled
-   - Error scenarios managed gracefully
-
-#### 2. Comprehensive Edge Cases (37 tests)
-**File:** `tests/edge-cases.sh` / `tests/edge-cases.ps1`
+#### 1. npm Package Tests (39 tests)
+**Files:** `tests/npm/*.test.js`, `tests/shared/unit/*.test.js`
 
 **Coverage Areas:**
-- **Version Commands (3 tests)**
-- **Help Commands (2 tests)**
-- **Argument Parsing (6 tests)**
-- **Profile Commands (4 tests)**
-- **Error Handling (3 tests)**
-- **Edge Cases (6 tests)**
-- **Configuration Validation (6 tests)**
-- **Real Usage Simulation (3 tests)**
-- **Platform-Specific Tests (4 tests)**
+- **Installation Testing** (npm global install, postinstall script)
+- **Configuration Management** (auto-creation, JSON validation)
+- **CLI Functionality** (version, help, profile switching)
+- **Error Handling** (invalid profiles, missing configs)
+- **Performance Testing** (startup times, memory usage)
+- **Cross-Platform Testing** (bash, zsh, different PATH configurations)
+
+#### 2. Shell Installer Tests (57 tests)
+**Files:** `tests/native/unix/*.sh`, `tests/edge-cases.sh`
+
+**Coverage Areas:**
+- **Installation Process** (curl installer, directory creation)
+- **Uninstall Functionality** (complete cleanup, PATH restoration)
+- **Shell Script Logic** (jq integration, platform detection)
+- **Edge Cases** (partial installs, error scenarios)
+- **Configuration Management** (profile handling, file validation)
+- **Integration Testing** (Claude CLI connectivity)
+
+#### 3. Comprehensive Cross-Compatibility Testing
+**Framework:** 5-Phase Testing (`plans/251105-comprehensive-ccs-testing/`)
+
+**Phases:**
+1. **Environment Assessment & Cleanup** (System state validation)
+2. **npm Package Testing** (Full npm package validation)
+3. **Shell Installer Testing** (Shell method validation)
+4. **Cross-Compatibility Testing** (Migration between methods)
+5. **Final Cleanup & Validation** (System restoration)
+
+**Key Findings from Latest Testing:**
+- npm version: 21ms startup, Node.js based, cross-platform
+- Shell version: 5ms startup (4x faster), bash based, Unix-like only
+- Configuration: Fully compatible between methods
+- Migration: Seamless switching between installation methods
 
 ## Testing Environment Requirements
 
@@ -214,15 +204,16 @@ Status: ✅ ALL TESTS PASSED
 
 ## Test Coverage Metrics
 
-### Current Coverage (v2.1.4)
+### Current Coverage (v2.4.5)
 
 | Test Category | Tests | Pass Rate | Status |
 |---------------|-------|-----------|--------|
-| Uninstall Functionality | 20 | 100% | ✅ Complete |
-| Edge Cases | 37 | 100% | ✅ Complete |
-| Cross-Platform Validation | 57 | 100% | ✅ Complete |
-| Environment Isolation | 57 | 100% | ✅ Complete |
-| **Total Coverage** | **57** | **100%** | **✅ Complete** |
+| npm Package Tests | 39 | 100% | ✅ Complete |
+| Unit Tests | 3 | 100% | ✅ Complete |
+| Shell Installer Tests | 57 | 100% | ✅ Complete |
+| Cross-Compatibility Tests | 15 | 100% | ✅ Complete |
+| Environment Isolation | 114 | 100% | ✅ Complete |
+| **Total Coverage** | **114** | **100%** | **✅ Complete** |
 
 ### Coverage Goals for Future Releases
 
@@ -233,6 +224,8 @@ Status: ✅ ALL TESTS PASSED
 | Edge Case Coverage | >90% | 100% ✅ |
 | Environment Isolation | 100% | 100% ✅ |
 | Security Validation | 100% | 100% ✅ |
+| npm Package Testing | 100% | 100% ✅ |
+| Installation Method Compatibility | 100% | 100% ✅ |
 
 ## Automated Testing Integration
 
@@ -243,24 +236,47 @@ Status: ✅ ALL TESTS PASSED
 # GitHub Actions example
 - name: Run CCS Tests
   run: |
-    ./tests/uninstall-test.sh
-    ./tests/edge-cases.sh
+    npm test
+    # This runs: npm run test:unit && npm run test:npm
+```
+
+**Enhanced Pipeline:**
+```yaml
+# Comprehensive testing
+- name: Environment Assessment
+  run: ./scripts/clean-test-environment.sh
+
+- name: npm Package Testing
+  run: npm test
+
+- name: Shell Installer Testing
+  run: ./tests/native/unix/installer-tests.sh
+
+- name: Cross-Compatibility Testing
+  run: ./scripts/test-installation-methods.sh
 ```
 
 **Test Automation Benefits:**
-- Consistent test execution
+- Consistent test execution across all installation methods
 - Early detection of regressions
 - Cross-platform validation
 - Automated quality gates
+- Installation method compatibility verification
 
 ### Performance Testing
 
-**Test Execution Benchmarks:**
-- **Uninstall Tests:** ~15 seconds
-- **Edge Case Tests:** ~45 seconds
-- **Total Suite:** ~60 seconds
+**Test Execution Benchmarks (Latest Results):**
+- **npm Package Tests:** ~45 seconds
+- **Shell Installer Tests:** ~60 seconds
+- **Cross-Compatibility Tests:** ~90 seconds
+- **Total Suite:** ~3-4 minutes (comprehensive 5-phase testing)
 - **Memory Usage:** Minimal
 - **Disk I/O:** Controlled and temporary
+
+**Performance Comparison:**
+- **npm version startup:** 21ms
+- **Shell version startup:** 5ms (4x faster)
+- **Installation time:** npm (1.5s) vs Shell (3s)
 
 ## Test Maintenance Procedures
 
@@ -387,10 +403,16 @@ Status: ✅ ALL TESTS PASSED
 
 ---
 
-**Maintained By:** QA Engineer & Development Team
-**Review Frequency:** Monthly or after major releases
-**Last Updated:** 2025-11-03
+**Maintained By:** Development Team
+**Review Frequency:** After major releases or significant code changes
+**Last Updated:** 2025-11-05
+
+**Recent Changes:**
+- Added npm package testing framework (39 tests)
+- Comprehensive cross-compatibility testing (5-phase framework)
+- Updated performance benchmarks and comparisons
+- Enhanced CI/CD pipeline recommendations
 
 **Unresolved Questions:** None
 **Blockers:** None
-**Next Review:** Post v2.1.4 release
+**Next Review:** Post v2.4.5 release or after next major code simplification

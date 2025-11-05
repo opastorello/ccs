@@ -48,7 +48,10 @@ If you have both Claude subscription and GLM Coding Plan, you know the pain:
 - Pass-through all Claude CLI args
 - Smart setup: detects your current provider
 - Auto-creates configs during install
-- No proxies, no magic—just bash + jq
+- **Simplified architecture**: 35% code reduction with optimized performance
+- **Unified spawn logic**: Consolidated process execution for reliability
+- **Streamlined error handling**: Clear, direct error messages
+- No proxies, no magic—just efficient Node.js implementation
 
 ## Basic Usage
 
@@ -75,17 +78,43 @@ ccs glm /code "implement feature"
 ### Utility Commands
 
 ```bash
-ccs --version    # Show CCS version and install location
-ccs --help       # Show Claude CLI help
+ccs --version    # Show enhanced version info with installation details
+ccs --help       # Show CCS-specific help documentation
 ccs --install    # Install CCS commands and skills to ~/.claude/
+ccs --uninstall  # Remove CCS commands and skills from ~/.claude/
 ```
 
 **Example `--version` Output**:
 ```
-CCS (Claude Code Switch) version 2.1.3
-Installed at: /usr/local/bin/ccs -> ~/.ccs/ccs
-https://github.com/kaitranntt/ccs
+CCS (Claude Code Switch) v2.4.4
+
+Installation:
+  Location: /home/user/.local/bin/ccs -> /home/user/.ccs/ccs
+  Config: ~/.ccs/config.json
+
+Documentation: https://github.com/kaitranntt/ccs
+License: MIT
+
+Run 'ccs --help' for usage information
 ```
+
+**Enhanced `--help` Features**:
+- CCS-specific documentation (no longer delegates to Claude CLI)
+- Comprehensive usage examples and flag descriptions
+- Installation and uninstallation instructions
+- Platform-specific guidance
+- Configuration file location and troubleshooting
+
+**Official Uninstall (Recommended)**:
+```bash
+# macOS/Linux
+curl -fsSL ccs.kaitran.ca/uninstall | bash
+
+# Windows PowerShell
+irm ccs.kaitran.ca/uninstall | iex
+```
+
+The official uninstaller completely removes CCS including configs and PATH modifications.
 
 **Platform-Specific Locations**:
 - macOS: `/usr/local/bin/ccs`
@@ -203,8 +232,18 @@ ccs
 
 ## How It Works
 
-1. Reads profile name (defaults to "default" if omitted)
-2. Looks up settings file path in `~/.ccs/config.json`
-3. Executes `claude --settings <path> [remaining-args]`
+The simplified CCS architecture provides efficient profile switching:
 
-No magic. No file modification. Pure delegation. Works identically across all platforms.
+1. **Argument parsing**: Smart detection of profile vs CLI flags
+2. **Configuration lookup**: Reads settings path from `~/.ccs/config.json`
+3. **Claude detection**: Optimized executable discovery across platforms
+4. **Unified execution**: Single `execClaude()` function spawns process with `--settings <path> [args]`
+
+### Recent Optimizations
+
+- **Consolidated spawn logic**: Single function eliminates code duplication
+- **Removed redundant validation**: Streamlined security while maintaining safety
+- **Simplified error handling**: Direct console.error for clarity and performance
+- **Optimized platform detection**: Centralized cross-platform logic
+
+No magic. No file modification. Efficient delegation. Works identically across all platforms with improved performance and maintainability.

@@ -108,7 +108,7 @@ export CCS_CLAUDE_PATH="/path/to/claude"              # Unix
 $env:CCS_CLAUDE_PATH = "D:\Tools\Claude\claude.exe"   # Windows
 ```
 
-**See [Troubleshooting Guide](./docs/troubleshooting.md#claude-cli-in-non-standard-location) for detailed setup instructions.**
+**See [Troubleshooting Guide](./docs/en/troubleshooting.md#claude-cli-in-non-standard-location) for detailed setup instructions.**
 
 ---
 
@@ -235,7 +235,9 @@ ccs --uninstall  # Remove CCS commands and skills from ~/.claude/
 
 ---
 
-### 🗑️ Uninstall
+### 🗑️ Official Uninstall
+
+**The recommended way to completely remove CCS:**
 
 **macOS / Linux**:
 ```bash
@@ -246,6 +248,16 @@ curl -fsSL ccs.kaitran.ca/uninstall | bash
 ```powershell
 irm ccs.kaitran.ca/uninstall | iex
 ```
+
+> 💡 **Why use the official uninstaller?**
+> - Removes all CCS files and configurations
+> - Cleans up PATH modifications
+> - Removes Claude CLI commands/skills
+> - Handles edge cases we've tested
+
+**Alternative methods** (if official uninstaller fails):
+- **npm**: `npm uninstall -g @kaitranntt/ccs`
+- **Manual**: See [troubleshooting guide](./docs/en/troubleshooting.md#manual-uninstall)
 
 ---
 
@@ -260,17 +272,17 @@ irm ccs.kaitran.ca/uninstall | iex
 ## 📖 Documentation
 
 **Complete documentation in [docs/](./docs/)**:
-- [Installation Guide](./docs/installation.md)
-- [Configuration](./docs/configuration.md)
-- [Usage Examples](./docs/usage.md)
-- [Troubleshooting](./docs/troubleshooting.md)
-- [Contributing](./docs/contributing.md)
+- [Installation Guide](./docs/en/installation.md)
+- [Configuration](./docs/en/configuration.md)
+- [Usage Examples](./docs/en/usage.md)
+- [Troubleshooting](./docs/en/troubleshooting.md)
+- [Contributing](./docs/en/contributing.md)
 
 ---
 
 ## 🤝 Contributing
 
-We welcome contributions! Please see our [Contributing Guide](./docs/contributing.md) for details.
+We welcome contributions! Please see our [Contributing Guide](./docs/en/contributing.md) for details.
 
 ---
 
@@ -284,6 +296,6 @@ CCS is licensed under the [MIT License](LICENSE).
 
 **Made with ❤️ for developers who hit rate limits too often**
 
-[⭐ Star this repo](https://github.com/kaitranntt/ccs) | [🐛 Report issues](https://github.com/kaitranntt/ccs/issues) | [📖 Read docs](./docs/)
+[⭐ Star this repo](https://github.com/kaitranntt/ccs) | [🐛 Report issues](https://github.com/kaitranntt/ccs/issues) | [📖 Read docs](./docs/en/)
 
 </div>

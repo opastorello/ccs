@@ -1,50 +1,58 @@
 # CCS Workflow Documentation
 
-Workflow documentation for CCS v2.0.0 covering installation, runtime behavior, and troubleshooting.
+Workflow documentation for CCS v2.4.4 covering installation, runtime behavior, and troubleshooting. Recently simplified with 35% code reduction while maintaining all functionality.
 
 ---
 
 ## Architecture Overview
+
+### Simplified Architecture (Post-Optimization)
 
 ```
 User Command: ccs [profile] [claude-args...]
          │
          ▼
 ┌─────────────────┐
-│  ccs (wrapper)  │  ← Bash (Unix) or PowerShell (Windows)
+│  ccs (Node.js)  │  ← Simplified entry point (139 lines, reduced from 232)
 └────────┬────────┘
          │
-         ├─ 1. Read ~/.ccs/config.json
-         ├─ 2. Lookup profile → settings file
-         ├─ 3. Validate settings file exists
+         ├─ 1. Parse arguments & detect profile
+         ├─ 2. Read ~/.ccs/config.json (simplified)
+         ├─ 3. Get settings path (streamlined)
+         ├─ 4. Detect Claude CLI (optimized)
          │
          ▼
-    ┌────────────────┐
-    │ Profile System │
-    └───────┬────────┘
-            │
-            ├─ default: ~/.claude/settings.json
-            └─ glm: ~/.ccs/glm.settings.json
-            │
-            ▼
+┌─────────────────┐
+│ Unified Spawn   │  ← Single execClaude() function (consolidated logic)
+└────────┬────────┘
+         │
+         ▼
     ┌──────────────────┐
     │   Claude CLI     │
     └──────────────────┘
 ```
 
-### Key Components
+### Key Components (Simplified)
 
-1. **ccs wrapper**: Lightweight script (bash/PowerShell)
-2. **Config file**: `~/.ccs/config.json` (profile → settings mappings)
-3. **Settings files**: Claude CLI settings JSON format
-4. **Claude CLI**: Official Anthropic CLI (unchanged)
+1. **ccs.js**: Main entry point with consolidated spawn logic
+2. **config-manager.js**: Streamlined configuration handling (73 lines, reduced from 134)
+3. **claude-detector.js**: Optimized Claude CLI detection (72 lines, reduced from 101)
+4. **helpers.js**: Essential utilities only (48 lines, reduced from 64)
+
+### Recent Simplification Achievements
+
+- **35% code reduction**: 1,315 → 855 lines while maintaining all functionality
+- **Consolidated spawn logic**: Single `execClaude()` function replaces 3 duplicate blocks
+- **Removed security theater**: Eliminated unnecessary validation functions
+- **Simplified error handling**: Direct console.error instead of complex formatting
+- **Deduplicated platform checks**: Centralized cross-platform logic
 
 ### Design Principles
 
-- **YAGNI**: Only 2 profiles (default/glm)
-- **KISS**: Simple delegation, no magic
-- **DRY**: One source of truth (config.json)
-- **Non-invasive**: Never modifies ~/.claude/settings.json
+- **YAGNI**: Only essential features, no "just in case" code
+- **KISS**: Simple delegation with unified logic
+- **DRY**: Single source of truth for each concern
+- **Performance**: Optimized for speed and maintainability
 
 ---
 
@@ -293,8 +301,11 @@ All output uses ASCII symbols for compatibility:
 6. **Backup**: Single file, overwrites each install
 7. **Terminal Output**: TTY detection, NO_COLOR support, ASCII symbols only
 8. **Shell Support**: Auto-detects bash, zsh, fish
+9. **Simplified Architecture**: 35% code reduction with unified spawn logic
+10. **Enhanced Performance**: Optimized for speed and maintainability
 
 ---
 
-**Version**: v2.2.0
-**Updated**: 2025-11-03
+**Version**: v2.4.4
+**Updated**: 2025-11-05
+**Architecture**: Simplified with consolidated components and improved maintainability

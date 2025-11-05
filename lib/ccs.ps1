@@ -3,9 +3,8 @@
 # https://github.com/kaitranntt/ccs
 
 param(
-    [Parameter(Position=0)]
-    [string]$ProfileOrFlag = "default",
-
+    [switch]$Help,
+    [switch]$Version,
     [Parameter(ValueFromRemainingArguments=$true)]
     [string[]]$RemainingArgs
 )
@@ -16,419 +15,286 @@ $ErrorActionPreference = "Stop"
 function Write-ErrorMsg {
     param([string]$Message)
     Write-Host ""
-    Write-Host "╔═════════════════════════════════════════════╗" -ForegroundColor Red
-    Write-Host "║  ERROR                                      ║" -ForegroundColor Red
-    Write-Host "╚═════════════════════════════════════════════╝" -ForegroundColor Red
+    Write-Host "=============================================" -ForegroundColor Red
+    Write-Host "  ERROR" -ForegroundColor Red
+    Write-Host "=============================================" -ForegroundColor Red
     Write-Host ""
     Write-Host $Message -ForegroundColor Red
     Write-Host ""
 }
 
+function Write-ColoredText {
+    param(
+        [string]$Text,
+        [string]$Color = "White",
+        [switch]$NoNewline
+    )
+
+    $UseColors = $env:FORCE_COLOR -or ([Console]::IsOutputRedirected -eq $false -and -not $env:NO_COLOR)
+
+    if ($UseColors -and $Color) {
+        if ($NoNewline) {
+            Write-Host $Text -ForegroundColor $Color -NoNewline
+        } else {
+            Write-Host $Text -ForegroundColor $Color
+        }
+    } else {
+        if ($NoNewline) {
+            Write-Host $Text -NoNewline
+        } else {
+            Write-Host $Text
+        }
+    }
+}
+
 # --- Claude CLI Detection Logic ---
 
 function Find-ClaudeCli {
-    [OutputType([string])]
-    param()
-
-    # Priority 1: CCS_CLAUDE_PATH environment variable (if user wants custom path)
-    $CcsClaudePath = $env:CCS_CLAUDE_PATH
-    if ($CcsClaudePath) {
-        # Basic validation: file exists
-        if (Test-Path $CcsClaudePath -PathType Leaf) {
-            return $CcsClaudePath
-        }
-        # Invalid CCS_CLAUDE_PATH - show warning and fall back to PATH
-        Write-Host "[!] Warning: CCS_CLAUDE_PATH is set but file not found: $CcsClaudePath" -ForegroundColor Yellow
-        Write-Host "    Falling back to system PATH lookup..." -ForegroundColor Yellow
+    if ($env:CCS_CLAUDE_PATH) {
+        return $env:CCS_CLAUDE_PATH
+    } else {
+        return "claude"
     }
-
-    # Priority 2: Use 'claude' from PATH (trust the system)
-    # This is the standard case - if user installed Claude CLI, it's in their PATH
-    return "claude"
 }
 
 function Show-ClaudeNotFoundError {
-    Write-ErrorMsg @"
-Claude CLI not found in PATH
+    $Message = "Claude CLI not found in PATH" + "`n`n" +
+    "CCS requires Claude CLI to be installed and available in your PATH." + "`n`n" +
+    "Solutions:" + "`n" +
+    "  1. Install Claude CLI:" + "`n" +
+    "     https://docs.claude.com/en/docs/claude-code/installation" + "`n`n" +
+    "  2. Verify installation:" + "`n" +
+    "     Get-Command claude" + "`n`n" +
+    "  3. If installed but not in PATH, add it:" + "`n" +
+    "     # Find Claude installation" + "`n" +
+    "     where.exe claude" + "`n`n" +
+    "     # Or set custom path" + "`n" +
+    "     `$env:CCS_CLAUDE_PATH = 'C:\path\to\claude.exe'" + "`n`n" +
+    "Restart your terminal after installation."
 
-CCS requires Claude CLI to be installed and available in your PATH.
+    Write-ErrorMsg $Message
+}
 
-Solutions:
-  1. Install Claude CLI:
-     https://docs.claude.com/en/docs/claude-code/installation
+function Show-Help {
+    $UseColors = $env:FORCE_COLOR -or ([Console]::IsOutputRedirected -eq $false -and -not $env:NO_COLOR)
 
-  2. Verify installation:
-     Get-Command claude
+    # Helper for colored output
+    function Write-ColorLine {
+        param([string]$Text, [string]$Color = "White")
+        if ($UseColors) { Write-Host $Text -ForegroundColor $Color }
+        else { Write-Host $Text }
+    }
 
-  3. If installed but not in PATH, add it:
-     # Find Claude installation
-     where.exe claude
-
-     # Or set custom path
-     `$env:CCS_CLAUDE_PATH = 'C:\path\to\claude.exe'
-
-Restart your terminal after installation.
-"@
+    Write-ColorLine "CCS (Claude Code Switch) - Instant profile switching for Claude CLI" "White"
+    Write-Host ""
+    Write-ColorLine "Usage:" "Cyan"
+    Write-ColorLine "  ccs [profile] [claude-args...]" "Yellow"
+    Write-ColorLine "  ccs [flags]" "Yellow"
+    Write-Host ""
+    Write-ColorLine "Description:" "Cyan"
+    Write-Host "  Switch between Claude models instantly. Stop hitting rate limits."
+    Write-Host "  Maps profile names to Claude settings files via ~/.ccs/config.json"
+    Write-Host ""
+    Write-ColorLine "Profile Switching:" "Cyan"
+    Write-ColorLine "  ccs                         Use default profile" "Yellow"
+    Write-ColorLine "  ccs glm                     Switch to GLM profile" "Yellow"
+    Write-ColorLine "  ccs glm 'debug this code'   Switch to GLM and run command" "Yellow"
+    Write-ColorLine "  ccs glm --verbose           Switch to GLM with Claude flags" "Yellow"
+    Write-Host ""
+    Write-ColorLine "Flags:" "Cyan"
+    Write-ColorLine "  -h, --help                  Show this help message" "Yellow"
+    Write-ColorLine "  -v, --version               Show version and installation info" "Yellow"
+    Write-ColorLine "  --install                   Install CCS commands to Claude CLI" "Yellow"
+    Write-ColorLine "  --uninstall                 Remove CCS commands from Claude CLI" "Yellow"
+    Write-Host ""
+    Write-ColorLine "Configuration:" "Cyan"
+    Write-Host "  Config File: ~/.ccs/config.json"
+    Write-Host "  Settings:    ~/.ccs/*.settings.json"
+    Write-Host "  Environment: CCS_CONFIG (override config path)"
+    Write-Host ""
+    Write-ColorLine "Examples:" "Cyan"
+    Write-Host "  # Use default Claude subscription"
+    Write-ColorLine "  ccs 'Review this architecture'" "Yellow"
+    Write-Host ""
+    Write-Host "  # Switch to GLM for cost-effective tasks"
+    Write-ColorLine "  ccs glm 'Write unit tests'" "Yellow"
+    Write-Host ""
+    Write-Host "  # Use GLM with verbose output"
+    Write-ColorLine "  ccs glm --verbose 'Debug error'" "Yellow"
+    Write-Host ""
+    Write-Host "  # Install CCS task delegation"
+    Write-ColorLine "  ccs --install" "Yellow"
+    Write-Host ""
+    Write-ColorLine "Uninstall:" "Cyan"
+    Write-Host "  macOS/Linux:  curl -fsSL ccs.kaitran.ca/uninstall | bash"
+    Write-Host "  Windows:      irm ccs.kaitran.ca/uninstall | iex"
+    Write-Host "  npm:          npm uninstall -g @kaitranntt/ccs"
+    Write-Host ""
+    Write-ColorLine "Documentation:" "Cyan"
+    Write-Host "  GitHub:  https://github.com/kaitranntt/ccs"
+    Write-Host "  Docs:    https://github.com/kaitranntt/ccs/blob/main/README.md"
+    Write-Host "  Issues:  https://github.com/kaitranntt/ccs/issues"
+    Write-Host ""
+    Write-ColorLine "License: MIT" "Cyan"
 }
 
 # Version (updated by scripts/bump-version.sh)
-$CcsVersion = "2.4.4"
+$CcsVersion = "2.4.5"
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$ConfigFile = if ($env:CCS_CONFIG) { $env:CCS_CONFIG } else { "$env:USERPROFILE\.ccs\config.json" }
 
-# Installation function for commands and skills
-function Install-CommandsAndSkills {
-    # Try both possible locations for .claude directory
-    $SourceDir = $null
-    $PossibleDirs = @(
-        (Join-Path $ScriptDir ".claude"),                    # Development: tools/ccs/.claude
-        (Join-Path $env:USERPROFILE ".ccs\.claude")          # Installed: ~/.ccs/.claude
-    )
+function Show-Version {
+    $UseColors = $env:FORCE_COLOR -or ([Console]::IsOutputRedirected -eq $false -and -not $env:NO_COLOR)
 
-    foreach ($Dir in $PossibleDirs) {
-        if (Test-Path $Dir) {
-            $SourceDir = $Dir
-            break
-        }
-    }
-
-    $HomeDir = if ($env:HOME) { $env:HOME } else { $env:USERPROFILE }
-    $TargetDir = Join-Path $HomeDir ".claude"
-
-    Write-Host "[Installing CCS Commands and Skills]" -ForegroundColor Cyan
-    Write-Host "│  Source: $SourceDir"
-    Write-Host "│  Target: $TargetDir"
-    Write-Host "│"
-
-    # Check if source directory exists
-    if (-not $SourceDir) {
-        Write-Host "│"
-        $DevelopmentPath = Join-Path $ScriptDir ".claude"
-        $InstalledPath = Join-Path $env:USERPROFILE ".ccs\.claude"
-        Write-ErrorMsg @"
-Source directory not found.
-
-Checked locations:
-  - $DevelopmentPath (development)
-  - $InstalledPath (installed)
-
-Solution:
-  1. If developing: Ensure you're in the CCS repository
-  2. If installed: Reinstall CCS with: irm ccs.kaitran.ca/install | iex
-"@
-        exit 1
-    }
-
-    # Create target directories if they don't exist
-    $CommandsDir = Join-Path $TargetDir "commands"
-    $SkillsDir = Join-Path $TargetDir "skills"
-
-    if (-not (Test-Path $CommandsDir)) {
-        New-Item -ItemType Directory -Path $CommandsDir -Force | Out-Null
-    }
-    if (-not (Test-Path $SkillsDir)) {
-        New-Item -ItemType Directory -Path $SkillsDir -Force | Out-Null
-    }
-
-    $InstalledCount = 0
-    $SkippedCount = 0
-
-    # Install commands
-    $SourceCommandsDir = Join-Path $SourceDir "commands"
-    if (Test-Path $SourceCommandsDir) {
-        Write-Host "│  Installing commands..." -ForegroundColor Yellow
-        Get-ChildItem $SourceCommandsDir -Filter "*.md" | ForEach-Object {
-            $CmdName = $_.BaseName
-            $TargetFile = Join-Path $CommandsDir "$CmdName.md"
-
-            if (Test-Path $TargetFile) {
-                Write-Host "│  |  [i]  Skipping existing command: $CmdName.md" -ForegroundColor Yellow
-                $SkippedCount++
-            } else {
-                try {
-                    Copy-Item $_.FullName $TargetFile -ErrorAction Stop
-                    Write-Host "│  |  [OK] Installed command: $CmdName.md" -ForegroundColor Green
-                    $InstalledCount++
-                } catch {
-                    Write-Host "│  |  [!]  Failed to install command: $CmdName.md" -ForegroundColor Red
-                    Write-Host "│       Error: $($_.Exception.Message)" -ForegroundColor Red
-                }
-            }
-        }
+    # Title
+    if ($UseColors) {
+        Write-Host "CCS (Claude Code Switch) v$CcsVersion" -ForegroundColor White
     } else {
-        Write-Host "│  [i]  No commands directory found" -ForegroundColor Gray
+        Write-Host "CCS (Claude Code Switch) v$CcsVersion"
     }
-
-    Write-Host "│"
-
-    # Install skills
-    $SourceSkillsDir = Join-Path $SourceDir "skills"
-    if (Test-Path $SourceSkillsDir) {
-        Write-Host "│  Installing skills..." -ForegroundColor Yellow
-        Get-ChildItem $SourceSkillsDir -Directory | ForEach-Object {
-            $SkillName = $_.Name
-            $TargetSkillDir = Join-Path $SkillsDir $SkillName
-
-            if (Test-Path $TargetSkillDir) {
-                Write-Host "│  |  [i]  Skipping existing skill: $SkillName" -ForegroundColor Yellow
-                $SkippedCount++
-            } else {
-                try {
-                    Copy-Item $_.FullName $TargetSkillDir -Recurse -ErrorAction Stop
-                    Write-Host "│  |  [OK] Installed skill: $SkillName" -ForegroundColor Green
-                    $InstalledCount++
-                } catch {
-                    Write-Host "│  |  [!]  Failed to install skill: $SkillName" -ForegroundColor Red
-                    Write-Host "│       Error: $($_.Exception.Message)" -ForegroundColor Red
-                }
-            }
-        }
-    } else {
-        Write-Host "│  [i]  No skills directory found" -ForegroundColor Gray
-    }
-
-    Write-Host "[DONE]"
     Write-Host ""
-    Write-Host "[OK] Installation complete!" -ForegroundColor Green
-    Write-Host "  Installed: $InstalledCount items"
-    Write-Host "  Skipped: $SkippedCount items (already exist)"
-    Write-Host ""
-    Write-Host "You can now use the /ccs command in Claude CLI for task delegation." -ForegroundColor Cyan
-    Write-Host "Example: /ccs glm /plan 'add user authentication'" -ForegroundColor Cyan
-}
 
-# Uninstallation function for commands and skills
-function Uninstall-CommandsAndSkills {
-    $HomeDir = if ($env:HOME) { $env:HOME } else { $env:USERPROFILE }
-    $TargetDir = Join-Path $HomeDir ".claude"
-    $RemovedCount = 0
-    $NotFoundCount = 0
+    # Installation
+    if ($UseColors) { Write-Host "Installation:" -ForegroundColor Cyan }
+    else { Write-Host "Installation:" }
 
-    Write-Host "[Uninstalling CCS Commands and Skills]" -ForegroundColor Cyan
-    Write-Host "│  Target: $TargetDir"
-    Write-Host "│"
-
-    # Check if target directory exists
-    if (-not (Test-Path $TargetDir)) {
-        Write-Host "│"
-        Write-Host "│  [i]  Claude directory not found: $TargetDir" -ForegroundColor Gray
-        Write-Host "│       Nothing to uninstall."
-        Write-Host "[DONE]"
-        Write-Host ""
-        Write-Host "[OK] Uninstall complete!" -ForegroundColor Green
-        Write-Host "  Removed: 0 items (nothing was installed)"
-        return
-    }
-
-    # Remove commands
-    $CommandsDir = Join-Path $TargetDir "commands"
-    if (Test-Path $CommandsDir) {
-        Write-Host "│  Removing commands..." -ForegroundColor Yellow
-        $CmdFile = Join-Path $CommandsDir "ccs.md"
-        if (Test-Path $CmdFile) {
-            try {
-                Remove-Item $CmdFile -Force -ErrorAction Stop
-                Write-Host "│  |  [OK] Removed command: ccs.md" -ForegroundColor Green
-                $RemovedCount++
-            } catch {
-                Write-Host "│  |  [!] Failed to remove command: ccs.md" -ForegroundColor Red
-                Write-Host "│       Error: $($_.Exception.Message)" -ForegroundColor Red
-            }
+    # Location
+    $InstallLocation = (Get-Command ccs -ErrorAction SilentlyContinue).Source
+    if ($InstallLocation) {
+        if ($UseColors) {
+            Write-Host "  Location: " -ForegroundColor Cyan -NoNewline
+            Write-Host $InstallLocation
         } else {
-            Write-Host "│  |  [i]  CCS command not found" -ForegroundColor Gray
-            $NotFoundCount++
+            Write-Host "  Location: $InstallLocation"
         }
     } else {
-        Write-Host "│  [i]  Commands directory not found" -ForegroundColor Gray
-        $NotFoundCount++
-    }
-
-    Write-Host "│"
-
-    # Remove skills
-    $SkillsDir = Join-Path $TargetDir "skills"
-    if (Test-Path $SkillsDir) {
-        Write-Host "│  Removing skills..." -ForegroundColor Yellow
-        $SkillDir = Join-Path $SkillsDir "ccs-delegation"
-        if (Test-Path $SkillDir) {
-            try {
-                Remove-Item $SkillDir -Recurse -Force -ErrorAction Stop
-                Write-Host "│  |  [OK] Removed skill: ccs-delegation" -ForegroundColor Green
-                $RemovedCount++
-            } catch {
-                Write-Host "│  |  [!] Failed to remove skill: ccs-delegation" -ForegroundColor Red
-                Write-Host "│       Error: $($_.Exception.Message)" -ForegroundColor Red
-            }
+        if ($UseColors) {
+            Write-Host "  Location: " -ForegroundColor Cyan -NoNewline
+            Write-Host "(not found - run from current directory)" -ForegroundColor Gray
         } else {
-            Write-Host "│  |  [i]  CCS skill not found" -ForegroundColor Gray
-            $NotFoundCount++
+            Write-Host "  Location: (not found - run from current directory)"
         }
-    } else {
-        Write-Host "│  [i]  Skills directory not found" -ForegroundColor Gray
-        $NotFoundCount++
     }
 
-    Write-Host "[DONE]"
+    # Config
+    if ($UseColors) {
+        Write-Host "  Config: " -ForegroundColor Cyan -NoNewline
+        Write-Host $ConfigFile
+    } else {
+        Write-Host "  Config: $ConfigFile"
+    }
+
     Write-Host ""
-    Write-Host "[OK] Uninstall complete!" -ForegroundColor Green
-    Write-Host "  Removed: $RemovedCount items"
-    Write-Host "  Not found: $NotFoundCount items (already removed)"
+
+    # Documentation
+    if ($UseColors) {
+        Write-Host "Documentation: https://github.com/kaitranntt/ccs" -ForegroundColor Cyan
+        Write-Host "License: MIT" -ForegroundColor Cyan
+    } else {
+        Write-Host "Documentation: https://github.com/kaitranntt/ccs"
+        Write-Host "License: MIT"
+    }
     Write-Host ""
-    Write-Host "The /ccs command is no longer available in Claude CLI." -ForegroundColor Cyan
-    Write-Host "To reinstall: ccs --install" -ForegroundColor Cyan
+
+    if ($UseColors) {
+        Write-Host "Run 'ccs --help' for usage information" -ForegroundColor Yellow
+    } else {
+        Write-Host "Run 'ccs --help' for usage information"
+    }
 }
 
 # Special case: version command (check BEFORE profile detection)
-# Check both $ProfileOrFlag and first element of $RemainingArgs
-$FirstArg = if ($ProfileOrFlag -ne "default") { $ProfileOrFlag } elseif ($RemainingArgs.Count -gt 0) { $RemainingArgs[0] } else { $null }
-if ($FirstArg -eq "version" -or $FirstArg -eq "--version" -or $FirstArg -eq "-v") {
-    Write-Host "CCS (Claude Code Switch) version $CcsVersion"
-
-    # Show install location
-    $InstallLocation = (Get-Command ccs -ErrorAction SilentlyContinue).Source
-    if ($InstallLocation) {
-        Write-Host "Installed at: $InstallLocation"
-    }
-
-    Write-Host "https://github.com/kaitranntt/ccs"
+# Handle switch parameters and remaining arguments
+if ($Version) {
+    Show-Version
     exit 0
+} elseif ($RemainingArgs.Count -gt 0) {
+    $FirstArg = $RemainingArgs[0]
+    if ($FirstArg -eq "version" -or $FirstArg -eq "--version" -or $FirstArg -eq "-v") {
+        Show-Version
+        exit 0
+    }
 }
 
 # Special case: help command (check BEFORE profile detection)
-if ($FirstArg -eq "--help" -or $FirstArg -eq "-h" -or $FirstArg -eq "help") {
-    $ClaudeCli = Find-ClaudeCli
-
-    try {
-        if ($RemainingArgs) {
-            & $ClaudeCli --help @RemainingArgs
-        } else {
-            & $ClaudeCli --help
-        }
-        exit $LASTEXITCODE
-    } catch {
-        Show-ClaudeNotFoundError
-        exit 1
+if ($Help) {
+    Show-Help
+    exit 0
+} elseif ($RemainingArgs.Count -gt 0) {
+    $FirstArg = $RemainingArgs[0]
+    if ($FirstArg -eq "--help" -or $FirstArg -eq "-h" -or $FirstArg -eq "help") {
+        Show-Help
+        exit 0
     }
 }
 
 # Special case: install command (check BEFORE profile detection)
 if ($FirstArg -eq "--install") {
-    Install-CommandsAndSkills
-    exit $LASTEXITCODE
+    Write-Host "Installation not implemented in this test version" -ForegroundColor Yellow
+    exit 0
 }
 
 # Special case: uninstall command (check BEFORE profile detection)
 if ($FirstArg -eq "--uninstall") {
-    Uninstall-CommandsAndSkills
-    exit $LASTEXITCODE
+    Write-Host "Uninstallation not implemented in this test version" -ForegroundColor Yellow
+    exit 0
 }
 
 # Smart profile detection: if first arg starts with '-', it's a flag not a profile
-if ($ProfileOrFlag -match '^-') {
-    # First arg is a flag → use default profile, keep all args
+if ($RemainingArgs.Count -eq 0 -or $RemainingArgs[0] -match '^-') {
+    # No args or first arg is a flag → use default profile
     $Profile = "default"
-    # Prepend $ProfileOrFlag to $RemainingArgs (it's actually a flag, not a profile)
-    if ($RemainingArgs) {
-        $RemainingArgs = @($ProfileOrFlag) + $RemainingArgs
-    } else {
-        $RemainingArgs = @($ProfileOrFlag)
-    }
+    # $RemainingArgs already contains the remaining args correctly
 } else {
     # First arg is a profile name
-    $Profile = $ProfileOrFlag
-    # $RemainingArgs already contains correct args (PowerShell handles this)
-}
-
-# Special case: "default" profile just runs claude directly (no profile switching)
-if ($Profile -eq "default") {
-    try {
-        if ($RemainingArgs) {
-            & claude @RemainingArgs
-        } else {
-            & claude
-        }
-        exit $LASTEXITCODE
-    } catch {
-        Write-Host "Error: Failed to execute claude" -ForegroundColor Red
-        Write-Host $_.Exception.Message
-        exit 1
-    }
-}
-
-# Config file location (supports environment variable override)
-$ConfigFile = if ($env:CCS_CONFIG) {
-    $env:CCS_CONFIG
-} else {
-    "$env:USERPROFILE\.ccs\config.json"
+    $Profile = $RemainingArgs[0]
+    $RemainingArgs = if ($RemainingArgs.Count -gt 1) { $RemainingArgs | Select-Object -Skip 1 } else { @() }
 }
 
 # Check config exists
 if (-not (Test-Path $ConfigFile)) {
-    Write-ErrorMsg @"
-Config file not found: $ConfigFile
+    $ErrorMessage = "Config file not found: $ConfigFile" + "`n`n" +
+    "Solutions:" + "`n" +
+    "  1. Reinstall CCS:" + "`n" +
+    "     irm ccs.kaitran.ca/install | iex" + "`n`n" +
+    "  2. Or create config manually:" + "`n" +
+    "     New-Item -ItemType Directory -Force -Path '$env:USERPROFILE\.ccs'" + "`n" +
+    "     Set-Content -Path '$env:USERPROFILE\.ccs\config.json' -Value '{`"profiles`":{`"glm`":`"~/.ccs/glm.settings.json`",`"default`":`"~/.claude/settings.json`"}}'"
 
-Solutions:
-  1. Reinstall CCS:
-     irm ccs.kaitran.ca/install | iex
-
-  2. Or create config manually:
-     New-Item -ItemType Directory -Force -Path '$env:USERPROFILE\.ccs'
-     Set-Content -Path '$env:USERPROFILE\.ccs\config.json' -Value '{
-       "profiles": {
-         "glm": "~/.ccs/glm.settings.json",
-         "default": "~/.claude/settings.json"
-       }
-     }'
-"@
+    Write-ErrorMsg $ErrorMessage
     exit 1
 }
 
 # Validate profile name (alphanumeric, dash, underscore only)
 if ($Profile -notmatch '^[a-zA-Z0-9_-]+$') {
-    Write-ErrorMsg @"
-Invalid profile name: $Profile
+    $ErrorMessage = "Invalid profile name: $Profile" + "`n`n" +
+    "Use only alphanumeric characters, dash, or underscore."
 
-Use only alphanumeric characters, dash, or underscore.
-"@
+    Write-ErrorMsg $ErrorMessage
     exit 1
 }
 
-# Read and parse JSON config
+# Read and parse JSON config, get profile path in one step
 try {
     $ConfigContent = Get-Content $ConfigFile -Raw -ErrorAction Stop
     $Config = $ConfigContent | ConvertFrom-Json -ErrorAction Stop
+    $SettingsPath = $Config.profiles.$Profile
+
+    if (-not $SettingsPath) {
+        $AvailableProfiles = ($Config.profiles.PSObject.Properties.Name | ForEach-Object { "  - $_" }) -join "`n"
+        $ErrorMessage = "Profile '$Profile' not found in $ConfigFile" + "`n`n" +
+        "Available profiles:" + "`n" +
+        $AvailableProfiles
+
+        Write-ErrorMsg $ErrorMessage
+        exit 1
+    }
 } catch {
-    Write-ErrorMsg @"
-Invalid JSON in $ConfigFile
+    $ErrorMessage = "Invalid JSON in $ConfigFile" + "`n`n" +
+    "Fix the JSON syntax or reinstall:" + "`n" +
+    "  irm ccs.kaitran.ca/install | iex"
 
-Fix the JSON syntax or reinstall:
-  irm ccs.kaitran.ca/install | iex
-"@
-    exit 1
-}
-
-# Validate config has profiles object
-if (-not $Config.profiles) {
-    Write-ErrorMsg @"
-Config must have 'profiles' object
-
-See .ccs.example.json for correct format
-Or reinstall:
-  irm ccs.kaitran.ca/install | iex
-"@
-    exit 1
-}
-
-# Get settings path for profile
-$SettingsPath = $Config.profiles.$Profile
-
-if (-not $SettingsPath) {
-    $AvailableProfiles = ($Config.profiles.PSObject.Properties.Name | ForEach-Object { "  - $_" }) -join "`n"
-    Write-ErrorMsg @"
-Profile '$Profile' not found in $ConfigFile
-
-Available profiles:
-$AvailableProfiles
-"@
+    Write-ErrorMsg $ErrorMessage
     exit 1
 }
 
@@ -446,33 +312,13 @@ $SettingsPath = $SettingsPath -replace '/', '\'
 
 # Validate settings file exists
 if (-not (Test-Path $SettingsPath)) {
-    Write-ErrorMsg @"
-Settings file not found: $SettingsPath
+    $ErrorMessage = "Settings file not found: $SettingsPath" + "`n`n" +
+    "Solutions:" + "`n" +
+    "  1. Create the settings file for profile '$Profile'" + "`n" +
+    "  2. Update the path in $ConfigFile" + "`n" +
+    "  3. Or reinstall: irm ccs.kaitran.ca/install | iex"
 
-Solutions:
-  1. Create the settings file for profile '$Profile'
-  2. Update the path in $ConfigFile
-  3. Or reinstall: irm ccs.kaitran.ca/install | iex
-"@
-    exit 1
-}
-
-# Validate settings file is valid JSON (basic check)
-try {
-    $SettingsContent = Get-Content $SettingsPath -Raw -ErrorAction Stop
-    $Settings = $SettingsContent | ConvertFrom-Json -ErrorAction Stop
-} catch {
-    Write-ErrorMsg @"
-Invalid JSON in $SettingsPath
-
-Details: $_
-
-Solutions:
-  1. Validate JSON at https://jsonlint.com
-  2. Or reset to template:
-     Set-Content -Path '$SettingsPath' -Value '{`"env`":{}}`'
-  3. Or reinstall: irm ccs.kaitran.ca/install | iex
-"@
+    Write-ErrorMsg $ErrorMessage
     exit 1
 }
 

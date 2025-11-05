@@ -234,7 +234,9 @@ ccs --uninstall  # Gỡ bỏ lệnh và kỹ năng CCS khỏi ~/.claude/
 
 ---
 
-### 🗑️ Gỡ Cài Đặt
+### 🗑️ Gỡ Cài Đặt Chính Thức
+
+**Cách được khuyến nghị để gỡ bỏ hoàn toàn CCS:**
 
 **macOS / Linux**:
 ```bash
@@ -245,6 +247,16 @@ curl -fsSL ccs.kaitran.ca/uninstall | bash
 ```powershell
 irm ccs.kaitran.ca/uninstall | iex
 ```
+
+> 💡 **Tại sao dùng uninstaller chính thức?**
+> - Gỡ bỏ tất cả file và cấu hình CCS
+> - Dọn dẹp PATH modifications
+> - Gỡ bỏ commands/skills Claude CLI
+> - Xử lý các trường hợp đặc biệt đã test
+
+**Phương pháp thay thế** (nếu uninstaller chính thức thất bại):
+- **npm**: `npm uninstall -g @kaitranntt/ccs`
+- **Thủ công**: Xem [hướng dẫn khắc phục](./docs/vi/troubleshooting.vi.md#gỡ-cài-đặt-thủ-công)
 
 ---
 

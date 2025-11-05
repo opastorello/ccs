@@ -2,7 +2,7 @@
 
 const fs = require('fs');
 const { execSync } = require('child_process');
-const { showError, expandPath } = require('./helpers');
+const { expandPath } = require('./helpers');
 
 // Detect Claude CLI executable
 function detectClaudeCli() {
@@ -60,40 +60,11 @@ function detectClaudeCli() {
   return null;
 }
 
-// Show Claude not found error with diagnostics
+// Show Claude not found error
 function showClaudeNotFoundError() {
-  const isWindows = process.platform === 'win32';
-  const pathDirs = (process.env.PATH || '').split(isWindows ? ';' : ':');
-
-  const errorMsg = `Claude CLI not found in PATH
-
-CCS requires Claude CLI to be installed and available in your PATH.
-
-[i] Diagnostic Info:
-    Platform: ${process.platform}
-    PATH directories: ${pathDirs.length}
-    Looking for: claude${isWindows ? '.exe' : ''}
-
-Solutions:
-  1. Install Claude CLI:
-     https://docs.claude.com/en/docs/claude-code/installation
-
-  2. Verify installation:
-     ${isWindows ? 'Get-Command claude' : 'command -v claude'}
-
-  3. If installed but not in PATH, add it:
-     # Find Claude installation
-     ${isWindows ? 'where.exe claude' : 'which claude'}
-
-     # Or set custom path
-     ${isWindows
-       ? '$env:CCS_CLAUDE_PATH = \'C:\\path\\to\\claude.exe\''
-       : 'export CCS_CLAUDE_PATH=\'/path/to/claude\''
-     }
-
-Restart your terminal after installation.`;
-
-  showError(errorMsg);
+  console.error('ERROR: Claude CLI not found in PATH');
+  console.error('Install from: https://docs.claude.com/en/docs/claude-code/installation');
+  process.exit(1);
 }
 
 module.exports = {

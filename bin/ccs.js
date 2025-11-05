@@ -4,35 +4,24 @@
 const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
-const { showError, colors } = require('./helpers');
+const { error } = require('./helpers');
 const { detectClaudeCli, showClaudeNotFoundError } = require('./claude-detector');
 const { getSettingsPath } = require('./config-manager');
 
 // Version (sync with package.json)
 const CCS_VERSION = require('../package.json').version;
 
-// Helper: Get spawn options for claude execution
-// On Windows, .cmd/.bat/.ps1 files need shell: true
-function getSpawnOptions(claudePath) {
-  const isWindows = process.platform === 'win32';
-  const needsShell = isWindows && /\.(cmd|bat|ps1)$/i.test(claudePath);
-
-  return {
-    stdio: 'inherit',
-    shell: needsShell,
-    windowsHide: true  // Hide the console window on Windows
-  };
-}
-
-// Helper: Escape arguments for shell execution to prevent security vulnerabilities
-function escapeShellArg(arg) {
-  if (process.platform !== 'win32') {
-    // Unix-like systems: escape single quotes and wrap in single quotes
-    return "'" + arg.replace(/'/g, "'\"'\"'") + "'";
-  } else {
-    // Windows: escape double quotes and wrap in double quotes
-    return '"' + arg.replace(/"/g, '""') + '"';
-  }
+// Execute Claude CLI with unified spawn logic
+function execClaude(claudeCli, args) {
+  const child = spawn(claudeCli, args, { stdio: 'inherit', windowsHide: true });
+  child.on('exit', (code, signal) => {
+    if (signal) process.kill(process.pid, signal);
+    else process.exit(code || 0);
+  });
+  child.on('error', () => {
+    showClaudeNotFoundError();
+    process.exit(1);
+  });
 }
 
 // Special command handlers
@@ -51,39 +40,12 @@ function handleVersionCommand() {
 
 function handleHelpCommand(remainingArgs) {
   const claudeCli = detectClaudeCli();
-
-  // Check if claude was found
   if (!claudeCli) {
     showClaudeNotFoundError();
     process.exit(1);
   }
 
-  // Execute claude --help
-  const spawnOpts = getSpawnOptions(claudeCli);
-  let claudeArgs, child;
-
-  if (spawnOpts.shell) {
-    // When shell is required, escape arguments properly
-    claudeArgs = [claudeCli, '--help', ...remainingArgs].map(escapeShellArg).join(' ');
-    child = spawn(claudeArgs, spawnOpts);
-  } else {
-    // When no shell needed, use arguments array directly
-    claudeArgs = ['--help', ...remainingArgs];
-    child = spawn(claudeCli, claudeArgs, spawnOpts);
-  }
-
-  child.on('exit', (code, signal) => {
-    if (signal) {
-      process.kill(process.pid, signal);
-    } else {
-      process.exit(code || 0);
-    }
-  });
-
-  child.on('error', (err) => {
-    showClaudeNotFoundError();
-    process.exit(1);
-  });
+  execClaude(claudeCli, ['--help', ...remainingArgs]);
 }
 
 function handleInstallCommand() {
@@ -91,9 +53,7 @@ function handleInstallCommand() {
   console.log('[Installing CCS Commands and Skills]');
   console.log('Feature not yet implemented in Node.js standalone');
   console.log('Use traditional installer for now:');
-  console.log(process.platform === 'win32'
-    ? '  irm ccs.kaitran.ca/install | iex'
-    : '  curl -fsSL ccs.kaitran.ca/install | bash');
+  console.log('  curl -fsSL ccs.kaitran.ca/install | bash');
   process.exit(0);
 }
 
@@ -151,40 +111,12 @@ function main() {
   // Special case: "default" profile just runs claude directly
   if (profile === 'default') {
     const claudeCli = detectClaudeCli();
-
-    // Check if claude was found
     if (!claudeCli) {
       showClaudeNotFoundError();
       process.exit(1);
     }
 
-    // Execute claude with args
-    const spawnOpts = getSpawnOptions(claudeCli);
-    let claudeArgs, child;
-
-    if (spawnOpts.shell) {
-      // When shell is required, escape arguments properly
-      claudeArgs = [claudeCli, ...remainingArgs].map(escapeShellArg).join(' ');
-      child = spawn(claudeArgs, spawnOpts);
-    } else {
-      // When no shell needed, use arguments array directly
-      claudeArgs = remainingArgs;
-      child = spawn(claudeCli, claudeArgs, spawnOpts);
-    }
-
-    child.on('exit', (code, signal) => {
-      if (signal) {
-        process.kill(process.pid, signal);
-      } else {
-        process.exit(code || 0);
-      }
-    });
-
-    child.on('error', (err) => {
-      showClaudeNotFoundError();
-      process.exit(1);
-    });
-
+    execClaude(claudeCli, remainingArgs);
     return;
   }
 
@@ -201,32 +133,7 @@ function main() {
   }
 
   // Execute claude with --settings
-  const claudeArgsList = ['--settings', settingsPath, ...remainingArgs];
-  const spawnOpts = getSpawnOptions(claudeCli);
-  let claudeArgs, child;
-
-  if (spawnOpts.shell) {
-    // When shell is required, escape arguments properly
-    claudeArgs = [claudeCli, ...claudeArgsList].map(escapeShellArg).join(' ');
-    child = spawn(claudeArgs, spawnOpts);
-  } else {
-    // When no shell needed, use arguments array directly
-    claudeArgs = claudeArgsList;
-    child = spawn(claudeCli, claudeArgs, spawnOpts);
-  }
-
-  child.on('exit', (code, signal) => {
-    if (signal) {
-      process.kill(process.pid, signal);
-    } else {
-      process.exit(code || 0);
-    }
-  });
-
-  child.on('error', (err) => {
-    showClaudeNotFoundError();
-    process.exit(1);
-  });
+  execClaude(claudeCli, ['--settings', settingsPath, ...remainingArgs]);
 }
 
 // Run main

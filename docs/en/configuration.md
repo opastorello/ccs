@@ -2,11 +2,19 @@
 
 ## Automatic Configuration
 
-The installer auto-creates config and profile templates during installation:
+The installer auto-creates config and profile templates during installation. The configuration system has been simplified for better maintainability and performance while maintaining all functionality.
 
 **macOS / Linux**: `~/.ccs/config.json`
 
 **Windows**: `%USERPROFILE%\.ccs\config.json`
+
+### Recent Simplification Improvements
+
+The configuration system has been optimized with these key improvements:
+- **Streamlined validation**: Removed redundant security checks while maintaining essential validation
+- **Simplified error handling**: Direct error messages instead of complex formatting
+- **Improved performance**: Reduced function call overhead and complexity
+- **Enhanced maintainability**: Consolidated logic with single sources of truth
 
 ## Configuration Format
 

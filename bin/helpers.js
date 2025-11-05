@@ -15,15 +15,11 @@ const colors = useColors ? {
   reset: '\x1b[0m'
 } : { red: '', yellow: '', cyan: '', green: '', bold: '', reset: '' };
 
-// Error formatting
-function showError(message) {
-  console.error('');
-  console.error(colors.red + colors.bold + '╔═════════════════════════════════════════════╗' + colors.reset);
-  console.error(colors.red + colors.bold + '║  ERROR                                      ║' + colors.reset);
-  console.error(colors.red + colors.bold + '╚═════════════════════════════════════════════╝' + colors.reset);
-  console.error('');
-  console.error(colors.red + message + colors.reset);
-  console.error('');
+// Simple error formatting
+function error(message) {
+  console.error(`ERROR: ${message}`);
+  console.error('Try: npm install -g @kaitranntt/ccs --force');
+  process.exit(1);
 }
 
 // Path expansion (~ and env vars)
@@ -45,21 +41,9 @@ function expandPath(pathStr) {
   return path.normalize(pathStr);
 }
 
-// Validate profile name (alphanumeric, dash, underscore only)
-function validateProfileName(profile) {
-  return /^[a-zA-Z0-9_-]+$/.test(profile);
-}
-
-// Validate path safety (prevent injection)
-function isPathSafe(pathStr) {
-  // Allow: alphanumeric, path separators, space, dash, underscore, dot, colon, tilde
-  return !/[;|&<>`$*?\[\]'"()]/.test(pathStr);
-}
 
 module.exports = {
   colors,
-  showError,
-  expandPath,
-  validateProfileName,
-  isPathSafe
+  error,
+  expandPath
 };

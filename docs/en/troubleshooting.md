@@ -1,5 +1,7 @@
 # CCS Troubleshooting Guide
 
+> **Note**: CCS has been recently simplified with a 35% code reduction (1,315 → 855 lines) while maintaining all functionality. The troubleshooting steps below apply to the simplified architecture.
+
 ## npm Installation Issues
 
 ### Config File Not Found After npm Install

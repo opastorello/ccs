@@ -75,17 +75,43 @@ ccs glm /code "implement feature"
 ### Lệnh Tiện Ích
 
 ```bash
-ccs --version    # Hiển thị phiên bản CCS và vị trí cài đặt
-ccs --help       # Hiển thị trợ giúp Claude CLI
+ccs --version    # Hiển thị thông tin phiên bản nâng cao với chi tiết cài đặt
+ccs --help       # Hiển thị tài liệu trợ giúp riêng của CCS
 ccs --install    # Cài đặt commands và skills CCS vào ~/.claude/
+ccs --uninstall  # Gỡ bỏ commands và skills CCS khỏi ~/.claude/
 ```
 
 **Ví Dụ Output `--version`**:
 ```
-CCS (Claude Code Switch) version 2.2.0
-Installed at: ~/.local/bin/ccs -> ~/.ccs/ccs
-https://github.com/kaitranntt/ccs
+CCS (Claude Code Switch) v2.4.4
+
+Installation:
+  Location: /home/user/.local/bin/ccs -> /home/user/.ccs/ccs
+  Config: ~/.ccs/config.json
+
+Documentation: https://github.com/kaitranntt/ccs
+License: MIT
+
+Run 'ccs --help' for usage information
 ```
+
+**Tính Năng Nâng Cứa `--help`**:
+- Tài liệu riêng của CCS (không còn delegate cho Claude CLI)
+- Ví dụ sử dụng và mô tả flag đầy đủ
+- Hướng dẫn cài đặt và gỡ bỏ
+- Hướng dẫn cụ thể theo nền tảng
+- Vị trí file cấu hình và khắc phục sự cố
+
+**Gỡ Cài Đặt Chính Thức (Khuyến Nghị)**:
+```bash
+# macOS/Linux
+curl -fsSL ccs.kaitran.ca/uninstall | bash
+
+# Windows PowerShell
+irm ccs.kaitran.ca/uninstall | iex
+```
+
+Uninstaller chính thức gỡ bỏ hoàn toàn CCS bao gồm cả cấu hình và PATH modifications.
 
 ### Cài Đặt Commands và Skills
 
