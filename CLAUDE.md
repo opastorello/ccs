@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-CCS (Claude Code Switch) is a lightweight CLI wrapper enabling instant profile switching between Claude Sonnet 4.5 and GLM 4.6 models. The tool delegates to the official Claude CLI via the `--settings` flag, supporting both Unix-like systems (bash) and Windows (PowerShell).
+CCS (Claude Code Switch) is a lightweight CLI wrapper enabling instant switching between **multiple Claude subscription accounts** (work, personal, team) and alternative models (GLM 4.6, Kimi for Coding). Built on v3.0 login-per-profile architecture where each profile is an isolated Claude instance.
 
 **Primary Installation Methods** (highest priority):
 - **npm Package** (recommended): `npm install -g @kaitranntt/ccs` (cross-platform)
@@ -14,10 +14,10 @@ CCS (Claude Code Switch) is a lightweight CLI wrapper enabling instant profile s
 ## Core Design Principles
 
 **YAGNI** (You Aren't Gonna Need It): No features "just in case"
-**KISS** (Keep It Simple): Simple bash/PowerShell, no complexity
+**KISS** (Keep It Simple): Simple bash/PowerShell/Node.js, no complexity
 **DRY** (Don't Repeat Yourself): One source of truth (config.json)
 
-The tool does ONE thing: map profile names to Claude settings files. Never add features that violate these principles.
+The tool does ONE thing: enable instant switching between Claude accounts and alternative models. Never add features that violate these principles.
 
 ## Key Constraints
 
@@ -34,22 +34,22 @@ The tool does ONE thing: map profile names to Claude settings files. Never add f
 
 ## Architecture
 
-**Core Flow** (common to both npm and traditional install):
-```
-User: ccs [profile] [claude-args]
-  ↓
-Read ~/.ccs/config.json
-  ↓
-Lookup profile → settings file path
-  ↓
-Validate settings file exists
-  ↓
-Execute: claude --settings <path> [args]
-```
+### v3.0 Key Features
 
-**Implementation Variants**:
-- **npm package**: Pure Node.js (bin/ccs.js) using child_process.spawn
-- **Traditional install**: Platform-specific bash (lib/ccs) or PowerShell (lib/ccs.ps1)
+**Login-Per-Profile Model**: Each profile is an isolated Claude instance where users login directly via `ccs auth create <profile>`. No credential copying, no vault encryption.
+
+**Two Profile Types**:
+1. **Settings-based** (models): GLM, Kimi, default - uses `--settings` flag
+2. **Account-based** (Claude accounts): work, personal, team - uses `CLAUDE_CONFIG_DIR`
+
+**Concurrent Sessions**: Multiple profiles can run simultaneously in different terminals via isolated config directories.
+
+### Implementation Variants
+
+**npm package**: Pure Node.js (bin/ccs.js) using child_process.spawn
+**Traditional install**: Platform-specific bash (lib/ccs) or PowerShell (lib/ccs.ps1)
+
+### File Structure
 
 **Key Files**:
 - `package.json`: npm package manifest with bin field configuration and postinstall script
@@ -61,48 +61,6 @@ Execute: claude --settings <path> [args]
 - `VERSION`: Single source of truth for version (format: MAJOR.MINOR.PATCH)
 - `.claude/`: Commands and skills for Claude Code integration
 
-**npm Package Architecture** (Pure Node.js):
-```
-npm install -g @kaitranntt/ccs
-  ↓
-npm runs postinstall: scripts/postinstall.js
-  ├─ Create ~/.ccs/ directory
-  ├─ Create config.json (if missing)
-  └─ Create glm.settings.json (if missing)
-  ↓
-npm creates ccs command (symlink to bin/ccs.js)
-  ↓
-User: ccs [profile] [claude-args]
-  ↓
-bin/ccs.js (pure Node.js, cross-platform):
-  ├─ Parse arguments and detect profile
-  ├─ Read ~/.ccs/config.json (via config-manager.js)
-  ├─ Get settings path for profile
-  ├─ Detect claude CLI location (via claude-detector.js)
-  └─ spawn('claude', ['--settings', settingsPath, ...args])
-```
-
-**Traditional Installer Architecture** (Bash/PowerShell):
-```
-curl -fsSL ccs.kaitran.ca/install | bash  # or irm install | iex
-  ↓
-installers/install.sh (or install.ps1)
-  ├─ Create ~/.ccs/ directory
-  ├─ Copy lib/ccs (or lib/ccs.ps1)
-  ├─ Create config.json
-  ├─ Create glm.settings.json
-  └─ Create symlink ~/.local/bin/ccs → ~/.ccs/ccs
-  ↓
-User: ccs [profile] [claude-args]
-  ↓
-lib/ccs (bash) or lib/ccs.ps1 (PowerShell):
-  ├─ Read ~/.ccs/config.json (jq or ConvertFrom-Json)
-  ├─ Get settings path for profile
-  └─ exec claude --settings <path> [args]
-```
-
-**Installation Creates**:
-
 **Executable Locations**:
 - macOS / Linux: `~/.local/bin/ccs` (symlink to `~/.ccs/ccs`)
 - Windows: `%USERPROFILE%\.ccs\ccs.ps1`
@@ -111,15 +69,51 @@ lib/ccs (bash) or lib/ccs.ps1 (PowerShell):
 ```
 ~/.ccs/
 ├── ccs                     # Main executable (or ccs.ps1 on Windows)
-├── config.json             # Profile mappings
+├── config.json             # Settings-based profile mappings
+├── profiles.json           # Account-based profile registry (v3.0)
+├── instances/              # Isolated Claude instances (v3.0)
+│   ├── work/               # Each profile gets own directory
+│   ├── personal/
+│   └── team/
 ├── config.json.backup      # Single backup (overwrites on each install)
 ├── glm.settings.json       # GLM profile template
+├── kimi.settings.json      # Kimi profile template
 ├── VERSION                 # Version file copy
 ├── uninstall.sh            # Uninstaller (or ccs-uninstall.ps1 on Windows)
 └── .claude/                # Claude Code integration
     ├── commands/ccs.md
     └── skills/ccs-delegation/
 ```
+
+### v3.0 Technical Implementation
+
+**Account-Based Profiles** (v3.0):
+```bash
+# Create profile (opens Claude CLI for login)
+ccs auth create work
+
+# Creates ~/.ccs/instances/work/ with:
+# - settings.json (Claude's config)
+# - session files
+# - todo lists
+# - logs
+
+# Usage: Set CLAUDE_CONFIG_DIR before spawning Claude CLI
+CLAUDE_CONFIG_DIR=~/.ccs/instances/work claude [args]
+```
+
+**Settings-Based Profiles** (legacy, still supported):
+```bash
+# Usage: Pass --settings flag to Claude CLI
+claude --settings ~/.ccs/glm.settings.json [args]
+```
+
+**Profile Detection Logic**:
+1. Check if profile exists in `profiles.json` (account-based)
+2. If yes → use `CLAUDE_CONFIG_DIR` method
+3. If no → check `config.json` (settings-based)
+4. If yes → use `--settings` method
+5. If no → show error with available profiles
 
 ## Development Commands
 
@@ -153,11 +147,11 @@ cat VERSION
 ./ccs glm --help
 
 # Test npm package locally
-npm pack                    # Creates kai-ccs-X.Y.Z.tgz
-npm install -g kai-ccs-X.Y.Z.tgz  # Test installation
+npm pack                    # Creates @kaitranntt-ccs-X.Y.Z.tgz
+npm install -g @kaitranntt-ccs-X.Y.Z.tgz  # Test installation
 ccs --version               # Verify it works
 npm uninstall -g @kaitranntt/ccs   # Cleanup
-rm kai-ccs-X.Y.Z.tgz        # Remove tarball
+rm @kaitranntt-ccs-X.Y.Z.tgz        # Remove tarball
 
 # Clean test environment
 rm -rf ~/.ccs
@@ -206,6 +200,12 @@ npm publish --access public  # Publish to npm registry
 - Native JSON parsing via `ConvertFrom-Json` / `ConvertTo-Json`
 - No external dependencies required
 
+### Node.js (npm package)
+- Compatibility: Node.js 14+
+- Use `child_process.spawn` for Claude CLI execution
+- Handle SIGINT/SIGTERM for graceful shutdown
+- Cross-platform path handling with `path` module
+
 ### Version Synchronization
 When changing version, update ALL three locations:
 1. `VERSION` file
@@ -221,7 +221,7 @@ The `ccs` wrapper uses smart detection:
 - No args OR first arg starts with `-` → use default profile
 - First arg doesn't start with `-` → treat as profile name
 - Special flags handled BEFORE profile detection: `--version`, `-v`, `--help`, `-h`
-- WIP: `--install` / `--uninstall` flags disabled pending .claude/ integration testing
+- `ccs auth create <profile>` → create new account-based profile
 
 ### Installation Modes
 - **Git mode**: Running from cloned repository (symlinks executables)
@@ -252,18 +252,42 @@ Install scripts must be safe to run multiple times:
 
 All values must be strings (not booleans/objects) to prevent PowerShell crashes.
 
+### v3.0 Profile Files
+
+**profiles.json** (account-based profiles):
+```json
+{
+  "profiles": {
+    "work": "~/.ccs/instances/work",
+    "personal": "~/.ccs/instances/personal",
+    "team": "~/.ccs/instances/team"
+  }
+}
+```
+
+**config.json** (settings-based profiles):
+```json
+{
+  "profiles": {
+    "glm": "~/.ccs/glm.settings.json",
+    "kimi": "~/.ccs/kimi.settings.json",
+    "default": "~/.claude/settings.json"
+  }
+}
+```
+
 ## Common Tasks
 
 ### Adding a New Feature
 1. Verify it aligns with YAGNI/KISS/DRY principles
-2. Implement for both bash and PowerShell
+2. Implement for both bash/PowerShell and Node.js if applicable
 3. Test on all platforms (macOS, Linux, Windows)
 4. Update tests in `tests/edge-cases.sh` and `tests/edge-cases.ps1`
-5. Update relevant documentation in `docs/`
+5. Update CONTRIBUTING.md if it affects contributors
 
 ### Fixing Bugs
 1. Add test case reproducing the bug
-2. Fix in both bash and PowerShell versions
+2. Fix in both bash/PowerShell and Node.js versions
 3. Verify fix doesn't break existing tests
 4. Test on all supported platforms
 
@@ -273,6 +297,7 @@ All values must be strings (not booleans/objects) to prevent PowerShell crashes.
 3. Test installation from both git and standalone modes
 4. Run full edge case test suite
 5. Commit and tag: `git tag v<VERSION>`
+6. Push to trigger GitHub Actions: `git push origin main && git push origin v<VERSION>`
 
 ## Testing Requirements
 
@@ -291,6 +316,8 @@ Before any PR, verify:
 - [ ] Shell reload instructions shown correctly
 - [ ] PATH not duplicated on multiple installs
 - [ ] Manual PATH setup instructions clear if auto fails
+- [ ] v3.0 concurrent sessions work correctly
+- [ ] Instance isolation works (no cross-profile contamination)
 
 ## Integration with Claude Code
 
@@ -298,11 +325,10 @@ The `.claude/` folder contains:
 - `/ccs` command: Meta-command for delegating tasks to different models
 - `ccs-delegation` skill: Intelligent task delegation patterns
 
-**WIP**: Installation via `ccs --install` disabled pending .claude/ integration testing
-
 ## Error Handling Philosophy
 
 - Validate early, fail fast with clear error messages
 - Show available options when user makes mistake
 - Suggest recovery steps (e.g., restore from backup)
 - Never leave system in broken state
+- For v3.0 profiles: Guide users through `ccs auth create` if profile missing

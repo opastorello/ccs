@@ -4,9 +4,10 @@
 
 ![CCS Logo](docs/assets/ccs-logo-medium.png)
 
-**Một lệnh, không downtime, đúng model cho từng tác vụ**
+**Một lệnh, không downtime, nhiều tài khoản**
 
-Chuyển đổi giữa Claude Sonnet 4.5 và GLM 4.6 ngay lập tức. Ngừng hitting rate limits. Bắt đầu tối ưu chi phí.
+Chuyển đổi giữa nhiều tài khoản Claude, GLM, và Kimi ngay lập tức.<br>
+Ngừng hitting rate limits. Làm việc liên tục.
 
 
 [![License](https://img.shields.io/badge/license-MIT-C15F3C?style=for-the-badge)](LICENSE)
@@ -37,7 +38,18 @@ claude /login
 npm install -g @kaitranntt/ccs
 ```
 
-Tương thích với các trình quản lý package npm, yarn, pnpm, và bun.
+Tất cả các trình quản lý package chính đều được hỗ trợ:
+
+```bash
+# yarn
+yarn global add @kaitranntt/ccs
+
+# pnpm (ít hơn 70% dung lượng đĩa)
+pnpm add -g @kaitranntt/ccs
+
+# bun (nhanh hơn 30x)
+bun add -g @kaitranntt/ccs
+```
 
 #### Option 2: Cài Đặt Trực Tiếp (Truyền thống)
 
@@ -51,38 +63,7 @@ curl -fsSL ccs.kaitran.ca/install | bash
 irm ccs.kaitran.ca/install | iex
 ```
 
-### Lần Chuyển Đổi Đầu Tiên
-
-```bash
-# Dùng Claude subscription (mặc định)
-ccs "Review thiết kế kiến trúc này"
-
-# Chuyển sang GLM cho tác vụ tối ưu chi phí
-ccs glm "Tạo REST API đơn giản"
-
-# Dùng GLM cho tất cả lệnh tiếp theo cho đến khi chuyển lại
-ccs glm
-ccs "Debug issue này"
-ccs "Viết unit tests"
-```
-
-#### Package Manager Options
-
-Tất cả các trình quản lý package chính đều được hỗ trợ:
-
-```bash
-# npm (mặc định)
-npm install -g @kaitranntt/ccs
-
-# yarn
-yarn global add @kaitranntt/ccs
-
-# pnpm (ít hơn 70% dung lượng đĩa)
-pnpm add -g @kaitranntt/ccs
-
-# bun (nhanh hơn 30x)
-bun add -g @kaitranntt/ccs
-```
+> **💡 Mẹo hiệu năng**: Cài truyền thống bỏ qua Node.js routing để khởi động nhanh hơn, nhưng tôi ưu tiên cập nhật npm do triển khai dễ dàng hơn.
 
 ### Cấu Hình (Tự Tạo)
 
@@ -111,84 +92,137 @@ $env:CCS_CLAUDE_PATH = "D:\Tools\Claude\claude.exe"   # Windows
 
 ---
 
+### Lần Chuyển Đổi Đầu Tiên
+
+> **⚠️ Quan trọng**: Trước khi dùng profile GLM hay Kimi, bạn cần cập nhật API key trong file settings tương ứng:
+> - **GLM**: Chỉnh sửa `~/.ccs/glm.settings.json` và thêm GLM API key của bạn
+> - **Kimi**: Chỉnh sửa `~/.ccs/kimi.settings.json` và thêm Kimi API key của bạn
+
+```bash
+# Dùng Claude subscription (mặc định) cho lập trình cấp cao
+ccs "Lên kế hoạch triển khai kiến trúc microservices"
+
+# Chuyển sang GLM cho tác vụ tối ưu chi phí
+ccs glm "Tạo REST API đơn giản"
+
+# Chuyển sang Kimi để sử dụng khả năng thinking
+ccs kimi "Viết integration tests với xử lý lỗi phù hợp"
+```
+
+---
+
 ## Điểm Đau Hàng Ngày Của Lập Trình Viên
 
-Bạn có cả Claude subscription và GLM Coding Plan. Hai tình huống xảy ra hàng ngày:
+Lập trình viên đối mặt nhiều kịch bản subscription hàng ngày:
 
-1. **Hết Rate Limit**: Claude dừng giữa chừng project → bạn phải tự tay sửa `~/.claude/settings.json`
-2. **Lãng Phí Chi Phí**: Tác vụ đơn giản dùng Claude đắt tiền → GLM cũng làm tốt
+1. **Phân Tách Account**: Tài khoản Claude công ty vs Claude cá nhân → bạn phải tự chuyển context để giữ công việc và cá nhân riêng biệt
+2. **Hết Rate Limit**: Claude dừng giữa chừng project → bạn phải tự tay sửa `~/.claude/settings.json`
+3. **Quản Lý Chi Phí**: 2-3 subscriptions Pro ($20/tháng) vs Claude Max với chi phí 5x ($100/tháng) → Tier Pro là ngưỡng thực tế cho hầu hết lập trình viên
+4. **Lựa Chọn Model**: Tác vụ khác nhau hưởng lợi từ thế mạnh model khác nhau → chuyển đổi thủ công
 
-Chuyển đổi thủ công làm gián đoạn workflow của bạn. **CCS khắc phục ngay lập tức**.
+Chuyển đổi context thủ công làm gián đoạn workflow. **CCS quản lý liền mạch**.
 
 ## Tại Sao CCS Thay Vì Chuyển Đổi Thủ Công?
 
 <div align="center">
 
-| Tính năng | Lợi ích | Giá trị cảm xúc |
-|-----------|---------|-----------------|
-| **Chuyển đổi tức thì** | Một lệnh, không sửa file | Tự tin, kiểm soát |
-| **Không downtime** | Không bao giờ gián đoạn workflow | Đáng tin cậy, nhất quán |
-| **Delegation thông minh** | Đúng model cho từng tác vụ tự động | Đơn giản, dễ dàng |
-| **Kiểm soát chi phí** | Dùng model đắt tiền chỉ khi cần | Hiệu quả, tiết kiệm |
-| **Đa nền tảng** | Hoạt động trên macOS, Linux, Windows | Linh hoạt, di động |
-| **Đáng tin cậy** | Bash/PowerShell thuần, không dependencies | Tin tưởng, an tâm |
+| Tính năng | Lợi ích |
+|-----------|---------|
+| **Phân Cách Account** | Giữ công việc riêng với cá nhân |
+| **Tối Ưu Chi Phí** | 2-3 account Pro vs Max 5x chi phí |
+| **Chuyển Đổi Tức Thì** | Một lệnh, không sửa file |
+| **Không Downtime** | Không gián đoạn workflow |
+| **Quản Lý Rate Limit** | Chuyển account khi hết limit |
+| **Đa Nền Tảng** | macOS, Linux, Windows |
 
 </div>
 
 **Giải pháp**:
 ```bash
-ccs           # Dùng Claude subscription (mặc định)
-ccs glm       # Chuyển sang GLM fallback
+ccs cong-ty      # Dùng account Claude công ty
+ccs ca-nhan      # Chuyển sang account Claude cá nhân
+ccs glm          # Chuyển sang GLM cho tác vụ tối ưu chi phí
+ccs kimi         # Chuyển sang Kimi cho lựa chọn thay thế
 # Hết rate limit? Chuyển ngay:
-ccs glm       # Tiếp tục làm việc với GLM
+ccs glm          # Tiếp tục làm việc với GLM
+# Cần account công ty khác?
+ccs cong-ty-2    # Chuyển sang account công ty thứ hai
 ```
-
-Một lệnh. Không downtime. Không phải sửa file. Đúng model, đúng việc.
 
 ---
 
 ## 🏗️ Tổng Quan Kiến Trúc
 
+**v3.0 Mô hình Login-Per-Profile**: Mỗi profile là một Claude instance riêng biệt nơi người dùng đăng nhập trực tiếp. Không cần sao chép credentials hay vault encryption.
+
 ```mermaid
-graph LR
-    subgraph "Lệnh Người Dùng"
-        CMD[ccs glm]
+flowchart TD
+    subgraph "Người Dùng Input"
+        USER["User chạy: ccs &lt;profile&gt; [args...]"]
     end
 
-    subgraph "Xử Lý CCS"
-        CONFIG[Đọc ~/.ccs/config.json]
-        LOOKUP[Tìm profile → file settings]
-        VALIDATE[Kiểm tra file tồn tại]
+    subgraph "Engine Phát Hiện Profile"
+        DETECT[ProfileDetector]
+        PROFILE_CHECK{Profile tồn tại?}
+
+        subgraph "Loại Profile"
+            SETTINGS["Settings-based<br/>glm, kimi, default"]
+            ACCOUNT["Account-based<br/>work, personal, team"]
+        end
     end
 
-    subgraph "Claude CLI"
-        EXEC[claude --settings file_path]
+    subgraph "Xử Lý Core CCS"
+        CONFIG["Đọc config.json<br/>và profiles.json"]
+
+        subgraph "Profile Handlers"
+            SETTINGS_MGR["SettingsManager<br/>→ --settings flag"]
+            INSTANCE_MGR["InstanceManager<br/>→ CLAUDE_CONFIG_DIR"]
+        end
     end
 
-    subgraph "Phản Hồi API"
-        API[Claude hoặc GLM API]
+    subgraph "Thực Thi Claude CLI"
+        CLAUDE_DETECT["Claude CLI Detection<br/>Hỗ trợ CCS_CLAUDE_PATH"]
+
+        subgraph "Phương Thức Thực Thi"
+            SETTINGS_EXEC["claude --settings &lt;path&gt;"]
+            INSTANCE_EXEC["CLAUDE_CONFIG_DIR=&lt;instance&gt; claude"]
+        end
     end
 
-    CMD --> CONFIG
-    CONFIG --> LOOKUP
-    LOOKUP --> VALIDATE
-    VALIDATE --> EXEC
-    EXEC --> API
+    subgraph "API Layer"
+        API["API Response<br/>Claude Sonnet 4.5<br/>GLM 4.6<br/>Kimi K2 Thinking"]
+    end
+
+    %% Flow connections
+    USER --> DETECT
+    DETECT --> PROFILE_CHECK
+    PROFILE_CHECK -->|Có| SETTINGS
+    PROFILE_CHECK -->|Có| ACCOUNT
+
+    SETTINGS --> CONFIG
+    ACCOUNT --> CONFIG
+
+    CONFIG --> SETTINGS_MGR
+    CONFIG --> INSTANCE_MGR
+
+    SETTINGS_MGR --> SETTINGS_EXEC
+    INSTANCE_MGR --> INSTANCE_EXEC
+
+    SETTINGS_EXEC --> CLAUDE_DETECT
+    INSTANCE_EXEC --> CLAUDE_DETECT
+
+    CLAUDE_DETECT --> API
 ```
 
 ---
 
 ## ⚡ Tính Năng
 
-### Chuyển Profile Ngay Lập Tức
-- **Một Lệnh**: `ccs glm` để chuyển sang GLM, `ccs` để dùng Claude subscription - không cần sửa file config
-- **Phát Hiện Thông Minh**: Tự động dùng đúng model cho từng tác vụ
-- **Liên Tục**: Chuyển đổi hoạt động cho đến khi thay đổi lại
-
-### Không Gián Đoạn Workflow
-- **Không Downtime**: Chuyển đổi xảy ra ngay lập tức giữa các lệnh
-- **Bảo Toàn Context**: Workflow của bạn không bị gián đoạn
-- **Tích Hợp Liền Mạch**: Hoạt động chính xác như Claude CLI native
+- **Chuyển Đổi Ngay Lập Tức** - `ccs glm` chuyển sang GLM, không cần sửa config
+- **Phiên Đồng Thời** - Chạy nhiều profile cùng lúc ở các terminal khác nhau
+- **Instance Riêng Biệt** - Mỗi profile có config riêng (`~/.ccs/instances/<profile>/`)
+- **Đa Nền Tảng** - macOS, Linux, Windows - hoạt động giống nhau
+- **Không Downtime** - Chuyển đổi ngay lập tức, không gián đoạn workflow
 
 
 ---
@@ -201,31 +235,50 @@ ccs glm          # Dùng GLM fallback
 ccs --version    # Hiển thị phiên bản CCS và vị trí cài đặt
 ```
 
+### Phiên Đồng Thời (Multi-Account)
+```bash
+# Tạo nhiều tài khoản Claude
+ccs auth create cong-ty    # Tài khoản công ty
+ccs auth create ca-nhan    # Tài khoản cá nhân
+ccs auth create team       # Tài khoản team
+
+# Terminal 1 - Tài khoản công ty
+ccs cong-ty "implement feature"
+
+# Terminal 2 - Tài khoản cá nhân (chạy đồng thời)
+ccs ca-nhan "review code"
+```
+
 ---
 
-### 🗑️ Gỡ Cài Đặt Chính Thức
+### 🗑️ Gỡ Cài Đặt
 
-**Cách được khuyến nghị để gỡ bỏ hoàn toàn CCS:**
+**Package Managers**
+```bash
+# npm
+npm uninstall -g @kaitranntt/ccs
 
-**macOS / Linux**:
+# yarn
+yarn global remove @kaitranntt/ccs
+
+# pnpm
+pnpm remove -g @kaitranntt/ccs
+
+# bun
+bun remove -g @kaitranntt/ccs
+```
+
+**Uninstaller Chính Thức**
+
+**macOS / Linux**
 ```bash
 curl -fsSL ccs.kaitran.ca/uninstall | bash
 ```
 
-**Windows PowerShell**:
+**Windows PowerShell**
 ```powershell
 irm ccs.kaitran.ca/uninstall | iex
 ```
-
-> 💡 **Tại sao dùng uninstaller chính thức?**
-> - Gỡ bỏ tất cả file và cấu hình CCS
-> - Dọn dẹp PATH modifications
-> - Gỡ bỏ commands/skills Claude CLI
-> - Xử lý các trường hợp đặc biệt đã test
-
-**Phương pháp thay thế** (nếu uninstaller chính thức thất bại):
-- **npm**: `npm uninstall -g @kaitranntt/ccs`
-- **Thủ công**: Xem [hướng dẫn khắc phục](./docs/vi/troubleshooting.vi.md#gỡ-cài-đặt-thủ-công)
 
 ---
 
@@ -244,13 +297,13 @@ irm ccs.kaitran.ca/uninstall | iex
 - [Cấu hình](./docs/configuration.md)
 - [Ví dụ Sử dụng](./docs/usage.md)
 - [Khắc phục Sự cố](./docs/troubleshooting.md)
-- [Đóng góp](./docs/contributing.md)
+- [Đóng góp](./CONTRIBUTING.md)
 
 ---
 
 ## 🤝 Đóng Góp
 
-Chúng tôi chào mừng đóng góp! Vui lòng xem [Hướng dẫn Đóng góp](./docs/contributing.md) để biết chi tiết.
+Chúng tôi chào mừng đóng góp! Vui lòng xem [Hướng dẫn Đóng góp](./CONTRIBUTING.md) để biết chi tiết.
 
 ---
 
