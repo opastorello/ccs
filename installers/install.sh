@@ -32,7 +32,7 @@ fi
 # IMPORTANT: Update this version when releasing new versions!
 # This hardcoded version is used for standalone installations (curl | bash)
 # For git installations, VERSION file is read if available
-CCS_VERSION="3.1.1"
+CCS_VERSION="3.2.0"
 
 # Try to read VERSION file for git installations
 if [[ -f "$SCRIPT_DIR/VERSION" ]]; then
@@ -611,79 +611,95 @@ fi
 echo "└─"
 echo ""
 
-# Migrate from ~/.claude/ to ~/.ccs/shared/ (v3.1.1)
-migrate_shared_data() {
+# Detect circular symlink
+detect_circular_symlink() {
+  local target="$1"
+  local link_path="$2"
+
+  # Check if target exists and is symlink
+  if [[ ! -L "$target" ]]; then
+    return 1  # Not circular
+  fi
+
+  # Resolve target's link
+  local target_link=$(readlink "$target" 2>/dev/null || echo "")
+  local shared_dir="$HOME/.ccs/shared"
+
+  # Check if target points back to our shared dir
+  if [[ "$target_link" == "$shared_dir"* ]] || [[ "$target_link" == "$link_path" ]]; then
+    echo "[!] Circular symlink detected: $target → $target_link"
+    return 0  # Circular
+  fi
+
+  return 1  # Not circular
+}
+
+# Setup shared directories as symlinks to ~/.claude/ (v3.2.0)
+setup_shared_symlinks() {
   local shared_dir="$CCS_DIR/shared"
   local claude_dir="$HOME/.claude"
 
-  # Create shared directories
-  mkdir -p "$shared_dir"/{commands,skills,agents}
-
-  # Check if migration is needed (shared dirs are empty)
-  local needs_migration=false
-  for dir in commands skills agents; do
-    if [[ -z "$(ls -A "$shared_dir/$dir" 2>/dev/null)" ]]; then
-      needs_migration=true
-      break
-    fi
-  done
-
-  if [[ "$needs_migration" == "false" ]]; then
-    return 0
-  fi
-
-  # Copy from ~/.claude/ if exists
+  # Create ~/.claude/ if missing
   if [[ ! -d "$claude_dir" ]]; then
-    return 0
+    echo "[i] Creating ~/.claude/ directory structure"
+    mkdir -p "$claude_dir"/{commands,skills,agents}
   fi
 
-  local migrated_commands=0
-  local migrated_skills=0
-  local migrated_agents=0
+  # Create shared directory
+  mkdir -p "$shared_dir"
 
-  # Copy commands
-  if [[ -d "$claude_dir/commands" ]]; then
-    for file in "$claude_dir/commands"/*; do
-      [[ -f "$file" ]] || continue
-      local basename=$(basename "$file")
-      [[ -f "$shared_dir/commands/$basename" ]] && continue  # Skip if exists
-      cp "$file" "$shared_dir/commands/" 2>/dev/null && migrated_commands=$((migrated_commands + 1))
-    done
-  fi
+  # Create symlinks ~/.ccs/shared/* → ~/.claude/*
+  for dir in commands skills agents; do
+    local claude_path="$claude_dir/$dir"
+    local shared_path="$shared_dir/$dir"
 
-  # Copy skills (directories)
-  if [[ -d "$claude_dir/skills" ]]; then
-    for dir in "$claude_dir/skills"/*; do
-      [[ -d "$dir" ]] || continue
-      local basename=$(basename "$dir")
-      [[ -d "$shared_dir/skills/$basename" ]] && continue  # Skip if exists
-      cp -r "$dir" "$shared_dir/skills/" 2>/dev/null && migrated_skills=$((migrated_skills + 1))
-    done
-  fi
+    # Create directory in ~/.claude/ if missing
+    if [[ ! -d "$claude_path" ]]; then
+      mkdir -p "$claude_path"
+    fi
 
-  # Copy agents
-  if [[ -d "$claude_dir/agents" ]]; then
-    for file in "$claude_dir/agents"/*; do
-      [[ -f "$file" ]] || continue
-      local basename=$(basename "$file")
-      [[ -f "$shared_dir/agents/$basename" ]] && continue  # Skip if exists
-      cp "$file" "$shared_dir/agents/" 2>/dev/null && migrated_agents=$((migrated_agents + 1))
-    done
-  fi
+    # Check for circular symlink
+    if detect_circular_symlink "$claude_path" "$shared_path"; then
+      echo "[!] Skipping $dir: circular symlink detected"
+      continue
+    fi
 
-  # Show results
-  local total=$((migrated_commands + migrated_skills + migrated_agents))
-  if [[ $total -gt 0 ]]; then
-    local parts=()
-    [[ $migrated_commands -gt 0 ]] && parts+=("$migrated_commands commands")
-    [[ $migrated_skills -gt 0 ]] && parts+=("$migrated_skills skills")
-    [[ $migrated_agents -gt 0 ]] && parts+=("$migrated_agents agents")
-    echo "[i] Migrated $(IFS=", "; echo "${parts[*]}")"
-  fi
+    # If already correct symlink, skip
+    if [[ -L "$shared_path" ]]; then
+      local current_target=$(readlink "$shared_path" 2>/dev/null || echo "")
+      if [[ "$current_target" == "$claude_path" ]]; then
+        continue  # Already correct
+      fi
+      rm -rf "$shared_path"
+    elif [[ -e "$shared_path" ]]; then
+      # Backup existing data before replacing
+      if [[ -d "$shared_path" ]] && [[ -n "$(ls -A "$shared_path" 2>/dev/null)" ]]; then
+        echo "[i] Migrating existing $dir to ~/.claude/$dir"
+        # Copy to claude dir (preserve user modifications)
+        for item in "$shared_path"/*; do
+          [[ -e "$item" ]] || continue
+          local basename=$(basename "$item")
+          if [[ ! -e "$claude_path/$basename" ]]; then
+            cp -r "$item" "$claude_path/" 2>/dev/null
+          fi
+        done
+      fi
+      rm -rf "$shared_path"
+    fi
+
+    # Create symlink
+    ln -s "$claude_path" "$shared_path" 2>/dev/null || {
+      echo "[!] Failed to create symlink for $dir, copying instead"
+      mkdir -p "$shared_path"
+      if [[ -d "$claude_path" ]]; then
+        cp -r "$claude_path"/* "$shared_path/" 2>/dev/null || true
+      fi
+    }
+  done
 }
 
-echo "[i] Checking for content migration..."
-migrate_shared_data
+echo "[i] Setting up shared directories..."
+setup_shared_symlinks
 echo ""
 
 # Auto-configure PATH if needed (all Unix platforms)

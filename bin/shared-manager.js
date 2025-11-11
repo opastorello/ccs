@@ -6,33 +6,119 @@ const os = require('os');
 
 /**
  * SharedManager - Manages symlinked shared directories for CCS
- * Phase 1: Shared Global Data via Symlinks
+ * v3.2.0: Symlink-based architecture
  *
- * Purpose: Eliminates duplication of commands/skills across profile instances
- * by symlinking to a single ~/.ccs/shared/ directory.
+ * Purpose: Eliminates duplication by symlinking:
+ * ~/.claude/ ← ~/.ccs/shared/ ← instance/
  */
 class SharedManager {
   constructor() {
     this.homeDir = os.homedir();
     this.sharedDir = path.join(this.homeDir, '.ccs', 'shared');
+    this.claudeDir = path.join(this.homeDir, '.claude');
     this.instancesDir = path.join(this.homeDir, '.ccs', 'instances');
     this.sharedDirs = ['commands', 'skills', 'agents'];
   }
 
   /**
-   * Ensure shared directories exist
+   * Detect circular symlink before creation
+   * @param {string} target - Target path to link to
+   * @param {string} linkPath - Path where symlink will be created
+   * @returns {boolean} True if circular
+   * @private
+   */
+  _detectCircularSymlink(target, linkPath) {
+    // Check if target exists and is symlink
+    if (!fs.existsSync(target)) {
+      return false;
+    }
+
+    try {
+      const stats = fs.lstatSync(target);
+      if (!stats.isSymbolicLink()) {
+        return false;
+      }
+
+      // Resolve target's link
+      const targetLink = fs.readlinkSync(target);
+      const resolvedTarget = path.resolve(path.dirname(target), targetLink);
+
+      // Check if target points back to our shared dir or link path
+      const sharedDir = path.join(this.homeDir, '.ccs', 'shared');
+      if (resolvedTarget.startsWith(sharedDir) || resolvedTarget === linkPath) {
+        console.log(`[!] Circular symlink detected: ${target} → ${resolvedTarget}`);
+        return true;
+      }
+    } catch (err) {
+      // If can't read, assume not circular
+      return false;
+    }
+
+    return false;
+  }
+
+  /**
+   * Ensure shared directories exist as symlinks to ~/.claude/
+   * Creates ~/.claude/ structure if missing
    */
   ensureSharedDirectories() {
+    // Create ~/.claude/ if missing
+    if (!fs.existsSync(this.claudeDir)) {
+      console.log('[i] Creating ~/.claude/ directory structure');
+      fs.mkdirSync(this.claudeDir, { recursive: true, mode: 0o700 });
+    }
+
     // Create shared directory
     if (!fs.existsSync(this.sharedDir)) {
       fs.mkdirSync(this.sharedDir, { recursive: true, mode: 0o700 });
     }
 
-    // Create shared subdirectories
+    // Create symlinks ~/.ccs/shared/* → ~/.claude/*
     for (const dir of this.sharedDirs) {
-      const dirPath = path.join(this.sharedDir, dir);
-      if (!fs.existsSync(dirPath)) {
-        fs.mkdirSync(dirPath, { recursive: true, mode: 0o700 });
+      const claudePath = path.join(this.claudeDir, dir);
+      const sharedPath = path.join(this.sharedDir, dir);
+
+      // Create directory in ~/.claude/ if missing
+      if (!fs.existsSync(claudePath)) {
+        fs.mkdirSync(claudePath, { recursive: true, mode: 0o700 });
+      }
+
+      // Check for circular symlink
+      if (this._detectCircularSymlink(claudePath, sharedPath)) {
+        console.log(`[!] Skipping ${dir}: circular symlink detected`);
+        continue;
+      }
+
+      // If already a symlink pointing to correct target, skip
+      if (fs.existsSync(sharedPath)) {
+        try {
+          const stats = fs.lstatSync(sharedPath);
+          if (stats.isSymbolicLink()) {
+            const currentTarget = fs.readlinkSync(sharedPath);
+            const resolvedTarget = path.resolve(path.dirname(sharedPath), currentTarget);
+            if (resolvedTarget === claudePath) {
+              continue; // Already correct
+            }
+          }
+        } catch (err) {
+          // Continue to recreate
+        }
+
+        // Remove existing directory/link
+        fs.rmSync(sharedPath, { recursive: true, force: true });
+      }
+
+      // Create symlink
+      try {
+        fs.symlinkSync(claudePath, sharedPath, 'dir');
+      } catch (err) {
+        // Windows fallback: copy directory
+        if (process.platform === 'win32') {
+          this._copyDirectoryFallback(claudePath, sharedPath);
+          console.log(`[!] Symlink failed for ${dir}, copied instead (enable Developer Mode)`);
+        } else {
+          throw err;
+        }
       }
     }
   }
@@ -57,9 +143,9 @@ class SharedManager {
       try {
         fs.symlinkSync(targetPath, linkPath, 'dir');
       } catch (err) {
-        // Windows fallback: copy directory if symlink fails
+        // Windows fallback
         if (process.platform === 'win32') {
-          this._copyDirectory(targetPath, linkPath);
+          this._copyDirectoryFallback(targetPath, linkPath);
           console.log(`[!] Symlink failed for ${dir}, copied instead (enable Developer Mode)`);
         } else {
           throw err;
@@ -69,155 +155,130 @@ class SharedManager {
   }
 
   /**
-   * Check if migration is needed
-   * @returns {boolean}
-   * @private
+   * Migrate from v3.1.1 (copied data in ~/.ccs/shared/) to v3.2.0 (symlinks to ~/.claude/)
+   * Runs once on upgrade
    */
-  _needsMigration() {
-    // If shared dir doesn't exist, migration needed
-    if (!fs.existsSync(this.sharedDir)) {
-      return true;
-    }
-
-    // Check if ALL shared directories are empty
-    const allEmpty = this.sharedDirs.every(dir => {
-      const dirPath = path.join(this.sharedDir, dir);
-      if (!fs.existsSync(dirPath)) return true;
-      try {
-        const files = fs.readdirSync(dirPath);
-        return files.length === 0;
-      } catch (err) {
-        return true; // If can't read, assume empty
-      }
-    });
-
-    return allEmpty;
-  }
-
-  /**
-   * Perform migration from ~/.claude/ to ~/.ccs/shared/
-   * @returns {object} { commands: N, skills: N, agents: N }
-   * @private
-   */
-  _performMigration() {
-    const stats = { commands: 0, skills: 0, agents: 0 };
-    const claudeDir = path.join(this.homeDir, '.claude');
-
-    if (!fs.existsSync(claudeDir)) {
-      return stats; // No content to migrate
-    }
-
-    // Migrate commands
-    const commandsPath = path.join(claudeDir, 'commands');
+  migrateFromV311() {
+    // Check if migration already done (shared dirs are symlinks)
+    const commandsPath = path.join(this.sharedDir, 'commands');
     if (fs.existsSync(commandsPath)) {
-      const result = this._copyDirectory(commandsPath, path.join(this.sharedDir, 'commands'));
-      stats.commands = result.copied;
+      try {
+        if (fs.lstatSync(commandsPath).isSymbolicLink()) {
+          return; // Already migrated
+        }
+      } catch (err) {
+        // Continue with migration
+      }
     }
 
-    // Migrate skills
-    const skillsPath = path.join(claudeDir, 'skills');
-    if (fs.existsSync(skillsPath)) {
-      const result = this._copyDirectory(skillsPath, path.join(this.sharedDir, 'skills'));
-      stats.skills = result.copied;
+    console.log('[i] Migrating from v3.1.1 to v3.2.0...');
+
+    // Ensure ~/.claude/ exists
+    if (!fs.existsSync(this.claudeDir)) {
+      fs.mkdirSync(this.claudeDir, { recursive: true, mode: 0o700 });
     }
 
-    // Migrate agents
-    const agentsPath = path.join(claudeDir, 'agents');
-    if (fs.existsSync(agentsPath)) {
-      const result = this._copyDirectory(agentsPath, path.join(this.sharedDir, 'agents'));
-      stats.agents = result.copied;
+    // Copy user modifications from ~/.ccs/shared/ to ~/.claude/
+    for (const dir of this.sharedDirs) {
+      const sharedPath = path.join(this.sharedDir, dir);
+      const claudePath = path.join(this.claudeDir, dir);
+
+      if (!fs.existsSync(sharedPath)) continue;
+
+      try {
+        const stats = fs.lstatSync(sharedPath);
+        if (!stats.isDirectory()) continue;
+      } catch (err) {
+        continue;
+      }
+
+      // Create claude dir if missing
+      if (!fs.existsSync(claudePath)) {
+        fs.mkdirSync(claudePath, { recursive: true, mode: 0o700 });
+      }
+
+      // Copy files from shared to claude (preserve user modifications)
+      try {
+        const entries = fs.readdirSync(sharedPath, { withFileTypes: true });
+        let copied = 0;
+
+        for (const entry of entries) {
+          const src = path.join(sharedPath, entry.name);
+          const dest = path.join(claudePath, entry.name);
+
+          // Skip if already exists in claude
+          if (fs.existsSync(dest)) continue;
+
+          if (entry.isDirectory()) {
+            fs.cpSync(src, dest, { recursive: true });
+          } else {
+            fs.copyFileSync(src, dest);
+          }
+          copied++;
+        }
+
+        if (copied > 0) {
+          console.log(`[OK] Migrated ${copied} ${dir} to ~/.claude/${dir}`);
+        }
+      } catch (err) {
+        console.log(`[!] Failed to migrate ${dir}: ${err.message}`);
+      }
     }
 
-    return stats;
+    // Now run ensureSharedDirectories to create symlinks
+    this.ensureSharedDirectories();
+
+    // Update all instances to use new symlinks
+    if (fs.existsSync(this.instancesDir)) {
+      try {
+        const instances = fs.readdirSync(this.instancesDir);
+
+        for (const instance of instances) {
+          const instancePath = path.join(this.instancesDir, instance);
+          try {
+            if (fs.statSync(instancePath).isDirectory()) {
+              this.linkSharedDirectories(instancePath);
+            }
+          } catch (err) {
+            console.log(`[!] Failed to update instance ${instance}: ${err.message}`);
+          }
+        }
+      } catch (err) {
+        // No instances to update
+      }
+    }
+
+    console.log('[OK] Migration to v3.2.0 complete');
   }
 
   /**
-   * Migrate existing instances to shared structure
-   * Idempotent: Safe to run multiple times
+   * Copy directory as fallback (Windows without Developer Mode)
+   * @param {string} src - Source directory
+   * @param {string} dest - Destination directory
+   * @private
    */
-  migrateToSharedStructure() {
-    console.log('[i] Checking for content migration...');
-
-    // Check if migration is needed
-    if (!this._needsMigration()) {
-      console.log('[OK] Migration not needed (shared dirs have content)');
+  _copyDirectoryFallback(src, dest) {
+    if (!fs.existsSync(src)) {
+      fs.mkdirSync(src, { recursive: true, mode: 0o700 });
       return;
     }
 
-    console.log('[i] Migrating ~/.claude/ content to ~/.ccs/shared/...');
-
-    // Create shared directories
-    this.ensureSharedDirectories();
-
-    // Perform migration
-    const stats = this._performMigration();
-
-    // Show results
-    const total = stats.commands + stats.skills + stats.agents;
-    if (total === 0) {
-      console.log('[OK] No content to migrate (empty ~/.claude/)');
-    } else {
-      const parts = [];
-      if (stats.commands > 0) parts.push(`${stats.commands} commands`);
-      if (stats.skills > 0) parts.push(`${stats.skills} skills`);
-      if (stats.agents > 0) parts.push(`${stats.agents} agents`);
-      console.log(`[OK] Migrated ${parts.join(', ')}`);
-    }
-
-    // Update all instances to use symlinks
-    if (fs.existsSync(this.instancesDir)) {
-      const instances = fs.readdirSync(this.instancesDir);
-
-      for (const instance of instances) {
-        const instancePath = path.join(this.instancesDir, instance);
-        if (fs.statSync(instancePath).isDirectory()) {
-          this.linkSharedDirectories(instancePath);
-        }
-      }
-    }
-  }
-
-  /**
-   * Copy directory recursively (SAFE: preserves existing files)
-   * @param {string} src - Source directory
-   * @param {string} dest - Destination directory
-   * @returns {object} { copied: N, skipped: N }
-   * @private
-   */
-  _copyDirectory(src, dest) {
-    if (!fs.existsSync(src)) {
-      return { copied: 0, skipped: 0 };
-    }
-
     if (!fs.existsSync(dest)) {
-      fs.mkdirSync(dest, { recursive: true });
+      fs.mkdirSync(dest, { recursive: true, mode: 0o700 });
     }
 
     const entries = fs.readdirSync(src, { withFileTypes: true });
-    let copied = 0;
-    let skipped = 0;
 
     for (const entry of entries) {
       const srcPath = path.join(src, entry.name);
       const destPath = path.join(dest, entry.name);
 
-      // SAFETY: Skip if destination exists (preserve user modifications)
-      if (fs.existsSync(destPath)) {
-        skipped++;
-        continue;
-      }
-
       if (entry.isDirectory()) {
-        const stats = this._copyDirectory(srcPath, destPath);
-        copied += stats.copied;
-        skipped += stats.skipped;
+        this._copyDirectoryFallback(srcPath, destPath);
       } else {
         fs.copyFileSync(srcPath, destPath);
-        copied++;
       }
     }
-
-    return { copied, skipped };
   }
 }
 

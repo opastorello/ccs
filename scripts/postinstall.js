@@ -89,15 +89,16 @@ function createConfigFiles() {
       }
     }
 
-    // Migrate from ~/.claude/ to ~/.ccs/shared/ (v3.1.1)
+    // Migrate from v3.1.1 to v3.2.0 (symlink architecture)
     console.log('');
     try {
       const SharedManager = require('../bin/shared-manager');
       const sharedManager = new SharedManager();
-      sharedManager.migrateToSharedStructure();
+      sharedManager.migrateFromV311();
+      sharedManager.ensureSharedDirectories();
     } catch (err) {
       console.warn('[!] Migration warning:', err.message);
-      console.warn('    You can manually copy files from ~/.claude/ to ~/.ccs/shared/');
+      console.warn('    Migration will retry on next run');
     }
     console.log('');
 
