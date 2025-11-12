@@ -1,228 +1,89 @@
 # CLAUDE.md
 
-Guidance for Claude Code when working with this repository.
+AI-facing guidance for Claude Code when working with this repository.
 
-## Project Overview
+## Core Function
 
-CCS (Claude Code Switch): CLI wrapper for instant switching between multiple Claude accounts (work, personal, team) and alternative models (GLM 4.6, Kimi). Built on v3.1 login-per-profile architecture with shared data support.
+CLI wrapper for instant switching between multiple Claude accounts and alternative models (GLM, GLMT, Kimi). See README.md for user documentation.
 
-**Core function**: Switch Claude accounts/models without manual config editing.
-
-## Design Principles
+## Design Principles (ENFORCE STRICTLY)
 
 - **YAGNI**: No features "just in case"
-- **KISS**: Simple bash/PowerShell/Node.js, no complexity
+- **KISS**: Simple bash/PowerShell/Node.js only
 - **DRY**: One source of truth (config.json)
-- **CLI-First**: Command-line primary interface
+- **CLI-First**: All features must have CLI interface
 
-## Critical Constraints
+## Critical Constraints (NEVER VIOLATE)
 
 1. **NO EMOJIS** - ASCII only: [OK], [!], [X], [i]
 2. **TTY-aware colors** - Respect NO_COLOR env var
-3. **Install locations**:
-   - Unix: `~/.local/bin` (auto PATH, no sudo)
-   - Windows: `%USERPROFILE%\.ccs`
-4. **Auto PATH config** - Detect shell (bash/zsh/fish), add automatically
-5. **Idempotent installs** - Safe to run multiple times
-6. **Non-invasive** - Never modify `~/.claude/settings.json`
-7. **Cross-platform parity** - Identical behavior everywhere
-8. **CLI documentation** - ALL changes MUST update `--help` in bin/ccs.js, lib/ccs, lib/ccs.ps1
+3. **Non-invasive** - NEVER modify `~/.claude/settings.json`
+4. **Cross-platform parity** - bash/PowerShell/Node.js must behave identically
+5. **CLI documentation** - ALL changes MUST update `--help` in bin/ccs.js, lib/ccs, lib/ccs.ps1
+6. **Idempotent** - All install operations safe to run multiple times
 
-## Architecture
+## Key Technical Details
 
-### v3.5 GLMT Tool Support & Streaming
+### GLMT Implementation Notes
 
-**Tool support added**: MCP tools and function calling fully supported
+**[!] GLMT only in Node.js version** (`bin/ccs.js`). Native shell versions don't support GLMT (requires HTTP server).
 
-**Streaming support added**: Real-time delivery of reasoning content and tool calls
-
-**Architecture**: Embedded HTTP proxy with bidirectional format transformation
-
-**[!] Important**: GLMT only available in Node.js version (`bin/ccs.js`). Native shell versions (`lib/ccs`, `lib/ccs.ps1`) do not support GLMT yet (requires HTTP server).
-
-**Flow**:
-1. User: `ccs glmt "solve problem"`
-2. `bin/ccs.js` spawns `bin/glmt-proxy.js` on localhost random port
-3. Modifies `glmt.settings.json`: `ANTHROPIC_BASE_URL=http://127.0.0.1:<port>`
-4. Spawns Claude CLI with modified settings
-5. Proxy intercepts requests (streaming or buffered):
-   - **Tool Transformation** (bidirectional):
-     - Anthropic tools → OpenAI function calling format
-     - OpenAI tool_calls → Anthropic tool_use blocks
-     - Streaming tool calls with input_json deltas
-     - MCP tools execute correctly (no XML tag output)
-   - **Streaming mode** (default with auto-fallback):
-     - `SSEParser` parses incremental SSE events from Z.AI
-     - `DeltaAccumulator` tracks content block state
-     - `glmt-transformer.js` converts OpenAI deltas → Anthropic events
-     - Real-time delivery to Claude CLI (TTFB <500ms)
-     - Auto-fallback to buffered mode on streaming errors
-6. Thinking blocks and tool calls appear in Claude Code UI (real-time delivery)
-
-**Thinking parameter support**:
-- Claude CLI `thinking` parameter recognized and processed
-- Parameter precedence: Claude CLI `thinking` > message tags > keywords
-- `thinking.type`: 'enabled'/'disabled' controls reasoning blocks
-- Input validation: logs warnings for invalid values
-- Backward compatible: control tags and keywords work
-
-**Files**:
+**Critical files when working on GLMT**:
 - `bin/glmt/glmt-proxy.js`: HTTP proxy server with streaming + auto-fallback
-- `bin/glmt/glmt-transformer.js`: Format conversion + delta handling + tool transformation + keyword detection
-- `bin/glmt/locale-enforcer.js`: Always enforces English output (prevents Chinese responses)
+- `bin/glmt/glmt-transformer.js`: Format conversion + delta handling + tool transformation
+- `bin/glmt/locale-enforcer.js`: Enforces English output
 - `bin/glmt/sse-parser.js`: SSE stream parser
-- `bin/glmt/delta-accumulator.js`: State tracking for streaming + tool calls + loop detection
-- `config/base-glmt.settings.json`: Template with Z.AI endpoint
+- `bin/glmt/delta-accumulator.js`: State tracking for streaming + tool calls
 - `tests/unit/glmt/glmt-transformer.test.js`: Unit tests (35 tests passing)
 
-**Thinking control** (natural language):
-- `think` - Enable reasoning (low effort)
-- `think hard` - Enable reasoning (medium effort)
-- `think harder` - Enable reasoning (high effort)
-- `ultrathink` - Maximum reasoning depth (max effort)
-
-Example:
-```bash
-ccs glmt "think about the architecture before implementing"
-ccs glmt "ultrathink this complex algorithm optimization"
-```
-
-**Control tags** (advanced):
-- `<Thinking:On|Off>` - Enable/disable reasoning
-- `<Effort:Low|Medium|High>` - Control reasoning depth
-
-**Environment variables**:
-- `CCS_DEBUG=1` - Enable debug logging (file logging to ~/.ccs/logs/ + enhanced console diagnostics)
+**Thinking control mechanisms**:
+- Keywords: `think`, `think hard`, `think harder`, `ultrathink`
+- Tags: `<Thinking:On|Off>`, `<Effort:Low|Medium|High>`
+- Precedence: CLI parameter > message tags > keywords
 
 **Security limits** (DoS protection):
 - SSE buffer: 1MB max
 - Content buffers: 10MB max per block
 - Content blocks: 100 max per message
-- Request timeout: 120s (both modes)
+- Request timeout: 120s
 
-**Confirmed working**: Z.AI (1498 reasoning chunks tested)
+### Profile Mechanisms
 
-**Control mechanisms**:
-1. **Locale enforcement**: Always injects "MUST respond in English" into system prompts
-2. **Thinking keywords**: 4-tier system matching Anthropic's levels
-   - `think` (low) < `think hard` (medium) < `think harder` (high) < `ultrathink` (max)
-   - Priority: ultrathink wins when multiple keywords present
-3. **Loop detection**: Triggers after 3 consecutive thinking blocks with no tool calls (DoS protection)
+**Settings-based**: `--settings` flag → GLM, GLMT, Kimi, default
+**Account-based**: `CLAUDE_CONFIG_DIR` → isolated Claude Sub instances
 
-### v3.1 Shared Data
+### Shared Data Architecture
 
-**Commands/skills/agents symlinked from `~/.ccs/shared/`** - no duplication across profiles.
+Symlinked from `~/.ccs/shared/`: commands/, skills/, agents/
+Profile-specific: settings.json, sessions/, todolists/, logs/
+Windows fallback: Copies if symlinks unavailable
 
-```
-~/.ccs/
-├── shared/                  # Shared across all profiles
-│   ├── commands/
-│   ├── skills/
-│   └── agents/
-├── instances/               # Profile-specific
-│   └── work/
-│       ├── commands@ → shared/commands/
-│       ├── skills@ → shared/skills/
-│       ├── agents@ → shared/agents/
-│       ├── settings.json    # API keys, credentials
-│       ├── sessions/        # Conversation history
-│       ├── todolists/
-│       └── logs/
-```
+## Code Standards (REQUIRED)
 
-**Shared**: commands/, skills/, agents/
-**Profile-specific**: settings.json, sessions/, todolists/, logs/
+### Bash (lib/ccs)
+- bash 3.2+, `set -euo pipefail`, quote all vars `"$VAR"`, `[[ ]]` tests only
+- `jq` only external dependency
 
-**Windows fallback**: Copies dirs if symlinks unavailable (enable Developer Mode for symlinks)
+### PowerShell (lib/ccs.ps1)
+- PowerShell 5.1+, `$ErrorActionPreference = "Stop"`
+- Native JSON only, no external dependencies
 
-### Profile Types
+### Node.js (bin/ccs.js)
+- Node.js 14+, `child_process.spawn`, handle SIGINT/SIGTERM
 
-**Settings-based**: GLM, GLMT, Kimi, default
-- GLM: Uses `--settings` flag (Anthropic endpoint, no thinking)
-- GLMT: Embedded proxy (OpenAI endpoint, thinking enabled)
-- Kimi: Uses `--settings` flag
+### Terminal Output (ENFORCE)
+- ASCII only: [OK], [!], [X], [i] (NO emojis)
+- TTY detect before colors, respect NO_COLOR
+- Box borders for errors: ╔═╗║╚╝
 
-**Account-based**: work, personal, team
-- Uses `CLAUDE_CONFIG_DIR` for isolated instances
-- Create: `ccs auth create <profile>`
-
-### Concurrent Sessions
-
-Multiple profiles run simultaneously via isolated config dirs.
-
-## File Structure
-
-**Key Files**:
-- `package.json`: npm manifest + postinstall
-- `bin/ccs.js`: Node.js entry point
-- `bin/instance-manager.js`: Instance orchestration
-- `bin/shared-manager.js`: Shared data symlinks (v3.1)
-- `bin/glmt-proxy.js`: Embedded HTTP proxy (v3.3 streaming)
-- `bin/glmt-transformer.js`: Anthropic ↔ OpenAI conversion + streaming (v3.3)
-- `bin/sse-parser.js`: SSE stream parser (v3.3)
-- `bin/delta-accumulator.js`: Streaming state tracker (v3.3)
-- `scripts/postinstall.js`: Auto-creates configs (idempotent)
-- `lib/ccs`: bash executable
-- `lib/ccs.ps1`: PowerShell executable
-- `installers/*.sh|*.ps1`: Install/uninstall scripts
-- `tests/glmt-transformer.test.js`: GLMT unit tests
-- `VERSION`: Version source of truth (MAJOR.MINOR.PATCH)
-
-**Executables**:
-- Unix: `~/.local/bin/ccs` → `~/.ccs/ccs`
-- Windows: `%USERPROFILE%\.ccs\ccs.ps1`
-
-**Config Files**:
-- `~/.ccs/config.json`: Settings-based profiles
-- `~/.ccs/profiles.json`: Account-based profiles
-- `~/.ccs/glm.settings.json`: GLM template (Anthropic endpoint)
-- `~/.ccs/glmt.settings.json`: GLMT template (proxy + thinking)
-- `~/.ccs/kimi.settings.json`: Kimi template
-
-## Implementations
-
-**npm package**: Pure Node.js (`bin/ccs.js`) using `child_process.spawn`
-
-**Traditional install**: bash (`lib/ccs`) or PowerShell (`lib/ccs.ps1`)
-
-## Code Standards
-
-### Bash
-- Compatibility: bash 3.2+
-- Quote vars: `"$VAR"` not `$VAR`
-- Tests: `[[ ]]` not `[ ]`
-- Shebang: `#!/usr/bin/env bash`
-- Safety: `set -euo pipefail`
-- Dependency: `jq` only
-
-### PowerShell
-- Compatibility: PowerShell 5.1+
-- `$ErrorActionPreference = "Stop"`
-- Native JSON: ConvertFrom-Json / ConvertTo-Json
-- No external dependencies
-
-### Node.js
-- Compatibility: Node.js 14+
-- `child_process.spawn` for Claude CLI
-- Handle SIGINT/SIGTERM
-- `path` module for cross-platform paths
-
-### Terminal Output
-- TTY detect: `[[ -t 2 ]]` before colors
-- Respect `NO_COLOR` env var
-- ASCII only: [OK], [!], [X], [i]
-- Errors: Box borders (╔═╗║╚╝)
-- Colors: Disable when not TTY
-
-## Development
+## Development Workflows
 
 ### Version Management
 ```bash
 ./scripts/bump-version.sh [major|minor|patch]  # Updates VERSION, install scripts
-cat VERSION                                     # Check version
 ```
 
-### Testing
+### Testing (REQUIRED before PR)
 ```bash
 ./tests/edge-cases.sh      # Unix
 ./tests/edge-cases.ps1     # Windows
@@ -230,101 +91,53 @@ cat VERSION                                     # Check version
 
 ### Local Development
 ```bash
-./installers/install.sh    # Test local install
-./ccs --version            # Verify
-
-# Test npm package
-npm pack && npm install -g @kaitranntt-ccs-*.tgz
-ccs --version
-npm uninstall -g @kaitranntt/ccs && rm *.tgz
-
-rm -rf ~/.ccs              # Clean environment
+./installers/install.sh && ./ccs --version     # Test install
+rm -rf ~/.ccs                                  # Clean environment
 ```
 
-### Publishing
-```bash
-# Release workflow
-./scripts/bump-version.sh patch
-git add VERSION package.json lib/* installers/*
-git commit -m "chore: bump version to X.Y.Z"
-git tag vX.Y.Z
-git push origin main && git push origin vX.Y.Z  # Triggers CI
+## Development Tasks (FOLLOW STRICTLY)
 
-# Manual
-npm publish --dry-run && npm publish --access public
-```
-
-## Common Tasks
-
-### New Feature
-
-1. Verify YAGNI/KISS/DRY alignment
-2. Implement for bash/PowerShell/Node.js
+### New Feature Checklist
+1. Verify YAGNI/KISS/DRY alignment - reject if doesn't align
+2. Implement in bash + PowerShell + Node.js (all three)
 3. **REQUIRED**: Update `--help` in bin/ccs.js, lib/ccs, lib/ccs.ps1
 4. Test on macOS/Linux/Windows
-5. Update tests/edge-cases.*
+5. Add test cases to tests/edge-cases.*
 6. Update README.md if user-facing
 
-### Bug Fix
-
-1. Add test case reproducing bug
-2. Fix in bash/PowerShell/Node.js
-3. Verify no regression
+### Bug Fix Checklist
+1. Add regression test first
+2. Fix in bash + PowerShell + Node.js (all three)
+3. Verify no regressions
 4. Test all platforms
 
-### Release
+## Pre-PR Checklist (MANDATORY)
 
-1. `./scripts/bump-version.sh [major|minor|patch]`
-2. Review VERSION, install scripts
-3. Test git + standalone modes
-4. Run full test suite
-5. `git tag v<VERSION> && git push origin main && git push origin v<VERSION>`
+Platform testing:
+- [ ] macOS (bash), Linux (bash), Windows (PowerShell + Git Bash)
+- [ ] Edge cases pass (./tests/edge-cases.*)
 
-## Testing Checklist
-
-Before PR:
-- [ ] macOS (bash)
-- [ ] Linux (bash)
-- [ ] Windows (PowerShell)
-- [ ] Windows (Git Bash)
-- [ ] Edge cases pass
-- [ ] Idempotent install
-- [ ] ASCII only (no emojis)
-- [ ] Version + install location correct
-- [ ] TTY colors, disabled when piped
+Code standards:
+- [ ] ASCII only (NO emojis)
+- [ ] TTY colors disabled when piped
 - [ ] NO_COLOR respected
-- [ ] Auto PATH (bash/zsh/fish)
-- [ ] Shell reload instructions shown
-- [ ] No PATH duplication
-- [ ] Manual PATH instructions clear
-- [ ] Concurrent sessions work
-- [ ] Instance isolation
 - [ ] `--help` updated in bin/ccs.js, lib/ccs, lib/ccs.ps1
 - [ ] `--help` consistent across all three
 
-## Technical Details
+Install/behavior:
+- [ ] Idempotent install
+- [ ] Concurrent sessions work
+- [ ] Instance isolation maintained
 
-### Profile Detection
+## Implementation Details
 
-1. Check `profiles.json` (account-based) → use `CLAUDE_CONFIG_DIR`
-2. Check `config.json` (settings-based) → use `--settings`
-3. Not found → show error + available profiles
+### Profile Resolution Logic
+1. Check `profiles.json` (account-based) → `CLAUDE_CONFIG_DIR`
+2. Check `config.json` (settings-based) → `--settings`
+3. Not found → error + list available profiles
 
-### Installation Modes
-
-- **Git**: Cloned repo (symlinks executables)
-- **Standalone**: curl/irm (downloads from GitHub)
-- Detection: Check if `ccs` exists in script dir/parent
-
-### Idempotency
-
-Install scripts safe to run multiple times:
-- Check existing files before create
-- Single backup: `config.json.backup` (no timestamps)
-- Skip existing `.claude/` install
-- Handle clean + existing installs
-
-### Settings Format
+### Settings Format (CRITICAL)
+All env values MUST be strings (not booleans/objects) to prevent PowerShell crashes.
 
 ```json
 {
@@ -339,92 +152,33 @@ Install scripts safe to run multiple times:
 }
 ```
 
-All values = strings (not booleans/objects) to prevent PowerShell crashes.
+## GLMT Debugging (Common Issues)
 
-### Profile Files
-
-**profiles.json** (account-based):
-```json
-{"profiles": {"work": "~/.ccs/instances/work"}}
-```
-
-**config.json** (settings-based):
-```json
-{"profiles": {"glm": "~/.ccs/glm.settings.json"}}
-```
-
-## GLMT Troubleshooting
-
-**API Key Issues**:
+### Debug Mode
 ```bash
-# Error: GLMT profile requires Z.AI API key
-# Fix: Edit ~/.ccs/glmt.settings.json, set ANTHROPIC_AUTH_TOKEN
+export CCS_DEBUG=1
+ccs glmt --verbose "test"  # File logs: ~/.ccs/logs/
 ```
 
-**Proxy Failures**:
-- Timeout (>120s): Proxy didn't start → check Node.js ≥14
-- Port conflicts: Uses random port, unlikely
-- Connection refused: Firewall blocking 127.0.0.1
+### Known Issues & Fixes
 
 **No Thinking Blocks**:
 - Check Z.AI API plan supports reasoning_content
-- Verify `<Thinking:On>` tag not overridden
-- Try using "think" keywords in prompt: `ccs glmt "think about the solution"`
-- Test with `ccs glm` (no thinking) to isolate proxy issues
+- Test with keywords: `ccs glmt "think about the solution"`
 
-**Blank/Empty Thinking Blocks** (v3.5.1+ fix):
-- Fixed: Signature timing race where signature sent before content accumulated
-- Solution: Content verification guard returns null if empty, 3 callers handle gracefully
-- Diagnostics: `export CCS_DEBUG=1` shows reasoning deltas, block creation, signature timing
-- Regression tests: `tests/unit/glmt/test-thinking-signature-race.js` (6 tests)
-
-**Chinese Output / Unexpected Language**:
-- Locale enforcer always injects "MUST respond in English" into system prompts
-- If issues persist, check Z.AI API configuration
-
-**Unbounded Planning Loops**:
-- Loop detection triggers after 3 consecutive thinking blocks with no tool calls (auto-stops)
-- Use specific execution keywords: "fix", "implement", "debug" to avoid excessive planning
+**Empty Thinking Blocks** (v3.5.1+):
+- Fixed: Signature timing race (see tests/unit/glmt/test-thinking-signature-race.js)
 
 **Tool Execution Issues**:
-- **MCP tools outputting XML**: Fixed in v3.5 - upgrade CCS
-- **Tool calls not recognized**: Ensure Z.AI API supports function calling
-- **Incomplete tool arguments**: Streaming tool calls require complete JSON accumulation
-- **Tool results not processed**: Check tool_result format matches Anthropic spec
-- Debug with `CCS_DEBUG=1` to inspect request/response transformation
+- MCP tools outputting XML: Fixed in v3.5
+- Debug with `CCS_DEBUG=1` to inspect transformation
 
 **Streaming Issues**:
-- Buffer errors: Hit DoS protection limits (1MB SSE, 10MB content)
-- Slow TTFB: Streaming auto-fallback to buffered mode on error
-- Incomplete reasoning: Z.AI may not support incremental delivery for all models
+- Buffer errors: Hit DoS limits (1MB SSE, 10MB content)
+- Auto-fallback to buffered mode on error
 
-**Debug Mode**:
-```bash
-# Verbose logging
-ccs glmt --verbose "test"
-
-# File logging
-export CCS_DEBUG=1
-ccs glmt --verbose "test"
-# Logs: ~/.ccs/logs/
-
-# Enhanced diagnostics (file + console)
-export CCS_DEBUG=1
-ccs glmt "think about complex task"
-# File logs: ~/.ccs/logs/
-# Console: reasoning deltas, block creation, signature timing
-```
-
-## Error Handling
+## Error Handling Principles
 
 - Validate early, fail fast with clear messages
 - Show available options on mistakes
-- Suggest recovery steps
 - Never leave broken state
-- Guide to `ccs auth create` if profile missing
-
-## Claude Code Integration
-
-`.claude/` contains:
-- `/ccs` command: Task delegation to different models
-- `ccs-delegation` skill: Delegation patterns
