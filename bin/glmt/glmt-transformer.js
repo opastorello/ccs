@@ -8,6 +8,7 @@ const os = require('os');
 const SSEParser = require('./sse-parser');
 const DeltaAccumulator = require('./delta-accumulator');
 const LocaleEnforcer = require('./locale-enforcer');
+const ReasoningEnforcer = require('./reasoning-enforcer');
 
 /**
  * GlmtTransformer - Convert between Anthropic and OpenAI formats with thinking and tool support
@@ -54,6 +55,11 @@ class GlmtTransformer {
 
     // Initialize locale enforcer (always enforce English)
     this.localeEnforcer = new LocaleEnforcer();
+
+    // Initialize reasoning enforcer (enabled by default for all GLMT usage)
+    this.reasoningEnforcer = new ReasoningEnforcer({
+      enabled: config.explicitReasoning ?? true
+    });
   }
 
   /**
@@ -104,10 +110,16 @@ class GlmtTransformer {
         anthropicRequest.messages || []
       );
 
+      // 4.5. Inject reasoning instruction (if enabled or thinking requested)
+      const messagesWithReasoning = this.reasoningEnforcer.injectInstruction(
+        messagesWithLocale,
+        thinkingConfig
+      );
+
       // 5. Convert to OpenAI format
       const openaiRequest = {
         model: glmModel,
-        messages: this._sanitizeMessages(messagesWithLocale),
+        messages: this._sanitizeMessages(messagesWithReasoning),
         max_tokens: this._getMaxTokens(glmModel),
         stream: anthropicRequest.stream ?? false
       };

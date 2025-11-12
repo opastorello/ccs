@@ -2,6 +2,24 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [3.4.6] - 2025-11-12
+
+### Added
+- GLMT ReasoningEnforcer: Prompt injection + API params hybrid (4 effort levels, always enabled)
+
+### Changed
+- Added GLMT production warnings (NOT PRODUCTION READY)
+- Streamlined CLAUDE.md (-337 lines)
+- Simplified GLMT controls: 4 mechanisms → 3 automatic
+- Locale + reasoning enforcement now always enabled
+
+### Removed
+- GLMT Budget Calculator mechanism (consolidated into automatic controls)
+- Deprecated GLMT environment variables (`CCS_GLMT_FORCE_ENGLISH`, `CCS_GLMT_THINKING_BUDGET`, `CCS_GLMT_STREAMING`)
+- Outdated test scenarios for removed environment variables
+
+---
+
 ## [3.4.5] - 2025-11-11
 
 ### Fixed

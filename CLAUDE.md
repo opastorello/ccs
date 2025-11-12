@@ -32,14 +32,21 @@ CLI wrapper for instant switching between multiple Claude accounts and alternati
 - `bin/glmt/glmt-proxy.js`: HTTP proxy server with streaming + auto-fallback
 - `bin/glmt/glmt-transformer.js`: Format conversion + delta handling + tool transformation
 - `bin/glmt/locale-enforcer.js`: Enforces English output
+- `bin/glmt/reasoning-enforcer.js`: Injects explicit reasoning instructions (hybrid approach)
 - `bin/glmt/sse-parser.js`: SSE stream parser
 - `bin/glmt/delta-accumulator.js`: State tracking for streaming + tool calls
 - `tests/unit/glmt/glmt-transformer.test.js`: Unit tests (35 tests passing)
+- `tests/unit/glmt/reasoning-enforcer.test.js`: ReasoningEnforcer unit tests (15 tests passing)
 
-**Thinking control mechanisms**:
-- Keywords: `think`, `think hard`, `think harder`, `ultrathink`
-- Tags: `<Thinking:On|Off>`, `<Effort:Low|Medium|High>`
-- Precedence: CLI parameter > message tags > keywords
+**Reasoning control mechanisms (hybrid approach)**:
+- **Keywords**: `think`, `think hard`, `think harder`, `ultrathink`
+- **Tags**: `<Thinking:On|Off>`, `<Effort:Low|Medium|High>`
+- **Precedence**: CLI parameter > message tags > keywords
+- **Hybrid mode**: Uses BOTH API parameters (`reasoning: true`) AND prompt injection
+  - API params: Native Z.AI support (deterministic, zero overhead)
+  - Prompt injection: Explicit format instructions using `<reasoning_content>` tags
+  - ReasoningEnforcer has 4 effort-aware prompts (low/medium/high/max)
+  - **Enabled by default** for all GLMT usage (always active)
 
 **Security limits** (DoS protection):
 - SSE buffer: 1MB max
