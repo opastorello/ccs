@@ -159,14 +159,9 @@ class InstanceManager {
    * @param {string} instancePath - Instance path
    */
   _copyGlobalConfigs(instancePath) {
-    const globalConfigDir = path.join(os.homedir(), '.claude');
-
-    // Copy settings.json only (commands/skills are now symlinked to shared/)
-    const globalSettings = path.join(globalConfigDir, 'settings.json');
-    if (fs.existsSync(globalSettings)) {
-      const instanceSettings = path.join(instancePath, 'settings.json');
-      fs.copyFileSync(globalSettings, instanceSettings);
-    }
+    // No longer needed - settings.json now symlinked via SharedManager
+    // Keeping method for backward compatibility (empty implementation)
+    // Can be removed in future major version
   }
 
   /**

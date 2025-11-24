@@ -313,43 +313,21 @@ graph LR
 - Uses `CLAUDE_CONFIG_DIR` for isolated instances
 - Create with `ccs auth create <profile>`
 
-### Shared Data (v3.1+)
+### Shared Data (v4.4+)
 
-**CCS items (v4.1)**: Commands and skills symlinked from `~/.ccs/.claude/` to `~/.claude/` - **single source of truth with auto-propagation**.
+**Shared across instances** (`~/.ccs/shared/` symlinked to `~/.claude/`):
+- commands/ - Slash commands
+- skills/ - Agent skills
+- agents/ - Agent configs
+- **settings.json** - Claude CLI settings (v4.4+)
 
-**Profile access**: `~/.ccs/shared/` symlinks to `~/.claude/` - **no duplication across profiles**.
+**Profile-specific**:
+- sessions/ - Conversation history
+- todolists/ - Todo lists
+- logs/ - Execution logs
 
-```plaintext
-~/.ccs/
-├── .claude/                 # CCS items (ships with package, v4.1)
-│   ├── commands/ccs/        # Delegation commands (/ccs, /ccs:continue)
-│   └── skills/ccs-delegation/  # AI decision framework (replaces deprecated agents)
-├── shared/                  # Symlinks to ~/.claude/ (for profiles)
-│   ├── agents@ → ~/.claude/agents/
-│   ├── commands@ → ~/.claude/commands/
-│   └── skills@ → ~/.claude/skills/
-├── instances/               # Profile-specific data
-│   └── work/
-│       ├── agents@ → shared/agents/
-│       ├── commands@ → shared/commands/
-│       ├── skills@ → shared/skills/
-│       ├── settings.json    # API keys, credentials
-│       ├── sessions/        # Conversation history
-│       └── ...
-
-~/.claude/                   # User's Claude directory
-├── commands/ccs@ → ~/.ccs/.claude/commands/ccs/  # Selective symlink
-├── skills/ccs-delegation@ → ~/.ccs/.claude/skills/ccs-delegation/
-# agents/ccs-delegator.md@ → ~/.ccs/.claude/agents/ccs-delegator.md  # Deprecated in v4.3.2
-```
-
-**Symlink Chain**: `work profile → ~/.ccs/shared/ → ~/.claude/ → ~/.ccs/.claude/` (CCS items)
-
-| Type | Files |
-|:-----|:------|
-| **CCS items** | `~/.ccs/.claude/` (ships with package, selective symlinks to `~/.claude/`) |
-| **Shared** | `~/.ccs/shared/` (symlinks to `~/.claude/`) |
-| **Profile-specific** | `settings.json`, `sessions/`, `todolists/`, `logs/` |
+> [!NOTE]
+> **v4.4 Breaking Change**: settings.json now shared across profiles. Previously each profile had isolated settings. Migration is automatic on install using ~/.claude/settings.json as the authoritative source. Backups created: `<instance>/settings.json.pre-shared-migration`
 
 > [!NOTE]
 > **Windows**: Symlink support requires Developer Mode (v4.2 will add copy fallback)

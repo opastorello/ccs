@@ -17,7 +17,13 @@ class SharedManager {
     this.sharedDir = path.join(this.homeDir, '.ccs', 'shared');
     this.claudeDir = path.join(this.homeDir, '.claude');
     this.instancesDir = path.join(this.homeDir, '.ccs', 'instances');
-    this.sharedDirs = ['commands', 'skills', 'agents', 'plugins'];
+    this.sharedItems = [
+      { name: 'commands', type: 'directory' },
+      { name: 'skills', type: 'directory' },
+      { name: 'agents', type: 'directory' },
+      { name: 'plugins', type: 'directory' },
+      { name: 'settings.json', type: 'file' }
+    ];
   }
 
   /**
@@ -74,18 +80,23 @@ class SharedManager {
     }
 
     // Create symlinks ~/.ccs/shared/* → ~/.claude/*
-    for (const dir of this.sharedDirs) {
-      const claudePath = path.join(this.claudeDir, dir);
-      const sharedPath = path.join(this.sharedDir, dir);
+    for (const item of this.sharedItems) {
+      const claudePath = path.join(this.claudeDir, item.name);
+      const sharedPath = path.join(this.sharedDir, item.name);
 
-      // Create directory in ~/.claude/ if missing
+      // Create in ~/.claude/ if missing
       if (!fs.existsSync(claudePath)) {
-        fs.mkdirSync(claudePath, { recursive: true, mode: 0o700 });
+        if (item.type === 'directory') {
+          fs.mkdirSync(claudePath, { recursive: true, mode: 0o700 });
+        } else if (item.type === 'file') {
+          // Create empty settings.json if missing
+          fs.writeFileSync(claudePath, JSON.stringify({}, null, 2), 'utf8');
+        }
       }
 
       // Check for circular symlink
       if (this._detectCircularSymlink(claudePath, sharedPath)) {
-        console.log(`[!] Skipping ${dir}: circular symlink detected`);
+        console.log(`[!] Skipping ${item.name}: circular symlink detected`);
         continue;
       }
 
@@ -104,18 +115,27 @@ class SharedManager {
           // Continue to recreate
         }
 
-        // Remove existing directory/link
-        fs.rmSync(sharedPath, { recursive: true, force: true });
+        // Remove existing file/directory/link
+        if (item.type === 'directory') {
+          fs.rmSync(sharedPath, { recursive: true, force: true });
+        } else {
+          fs.unlinkSync(sharedPath);
+        }
       }
 
       // Create symlink
       try {
-        fs.symlinkSync(claudePath, sharedPath, 'dir');
+        const symlinkType = item.type === 'directory' ? 'dir' : 'file';
+        fs.symlinkSync(claudePath, sharedPath, symlinkType);
       } catch (err) {
-        // Windows fallback: copy directory
+        // Windows fallback: copy
         if (process.platform === 'win32') {
-          this._copyDirectoryFallback(claudePath, sharedPath);
-          console.log(`[!] Symlink failed for ${dir}, copied instead (enable Developer Mode)`);
+          if (item.type === 'directory') {
+            this._copyDirectoryFallback(claudePath, sharedPath);
+          } else if (item.type === 'file') {
+            fs.copyFileSync(claudePath, sharedPath);
+          }
+          console.log(`[!] Symlink failed for ${item.name}, copied instead (enable Developer Mode)`);
         } else {
           throw err;
         }
@@ -130,23 +150,32 @@ class SharedManager {
   linkSharedDirectories(instancePath) {
     this.ensureSharedDirectories();
 
-    for (const dir of this.sharedDirs) {
-      const linkPath = path.join(instancePath, dir);
-      const targetPath = path.join(this.sharedDir, dir);
+    for (const item of this.sharedItems) {
+      const linkPath = path.join(instancePath, item.name);
+      const targetPath = path.join(this.sharedDir, item.name);
 
-      // Remove existing directory/link
+      // Remove existing file/directory/link
       if (fs.existsSync(linkPath)) {
-        fs.rmSync(linkPath, { recursive: true, force: true });
+        if (item.type === 'directory') {
+          fs.rmSync(linkPath, { recursive: true, force: true });
+        } else {
+          fs.unlinkSync(linkPath);
+        }
       }
 
       // Create symlink
       try {
-        fs.symlinkSync(targetPath, linkPath, 'dir');
+        const symlinkType = item.type === 'directory' ? 'dir' : 'file';
+        fs.symlinkSync(targetPath, linkPath, symlinkType);
       } catch (err) {
         // Windows fallback
         if (process.platform === 'win32') {
-          this._copyDirectoryFallback(targetPath, linkPath);
-          console.log(`[!] Symlink failed for ${dir}, copied instead (enable Developer Mode)`);
+          if (item.type === 'directory') {
+            this._copyDirectoryFallback(targetPath, linkPath);
+          } else if (item.type === 'file') {
+            fs.copyFileSync(targetPath, linkPath);
+          }
+          console.log(`[!] Symlink failed for ${item.name}, copied instead (enable Developer Mode)`);
         } else {
           throw err;
         }
@@ -179,49 +208,56 @@ class SharedManager {
     }
 
     // Copy user modifications from ~/.ccs/shared/ to ~/.claude/
-    for (const dir of this.sharedDirs) {
-      const sharedPath = path.join(this.sharedDir, dir);
-      const claudePath = path.join(this.claudeDir, dir);
+    for (const item of this.sharedItems) {
+      const sharedPath = path.join(this.sharedDir, item.name);
+      const claudePath = path.join(this.claudeDir, item.name);
 
       if (!fs.existsSync(sharedPath)) continue;
 
       try {
         const stats = fs.lstatSync(sharedPath);
-        if (!stats.isDirectory()) continue;
-      } catch (err) {
-        continue;
-      }
 
-      // Create claude dir if missing
-      if (!fs.existsSync(claudePath)) {
-        fs.mkdirSync(claudePath, { recursive: true, mode: 0o700 });
-      }
-
-      // Copy files from shared to claude (preserve user modifications)
-      try {
-        const entries = fs.readdirSync(sharedPath, { withFileTypes: true });
-        let copied = 0;
-
-        for (const entry of entries) {
-          const src = path.join(sharedPath, entry.name);
-          const dest = path.join(claudePath, entry.name);
-
-          // Skip if already exists in claude
-          if (fs.existsSync(dest)) continue;
-
-          if (entry.isDirectory()) {
-            fs.cpSync(src, dest, { recursive: true });
-          } else {
-            fs.copyFileSync(src, dest);
+        // Handle directories
+        if (item.type === 'directory' && stats.isDirectory()) {
+          // Create claude dir if missing
+          if (!fs.existsSync(claudePath)) {
+            fs.mkdirSync(claudePath, { recursive: true, mode: 0o700 });
           }
-          copied++;
+
+          // Copy files from shared to claude (preserve user modifications)
+          const entries = fs.readdirSync(sharedPath, { withFileTypes: true });
+          let copied = 0;
+
+          for (const entry of entries) {
+            const src = path.join(sharedPath, entry.name);
+            const dest = path.join(claudePath, entry.name);
+
+            // Skip if already exists in claude
+            if (fs.existsSync(dest)) continue;
+
+            if (entry.isDirectory()) {
+              fs.cpSync(src, dest, { recursive: true });
+            } else {
+              fs.copyFileSync(src, dest);
+            }
+            copied++;
+          }
+
+          if (copied > 0) {
+            console.log(`[OK] Migrated ${copied} ${item.name} to ~/.claude/${item.name}`);
+          }
         }
 
-        if (copied > 0) {
-          console.log(`[OK] Migrated ${copied} ${dir} to ~/.claude/${dir}`);
+        // Handle files (settings.json)
+        else if (item.type === 'file' && stats.isFile()) {
+          // Only copy if ~/.claude/ version doesn't exist
+          if (!fs.existsSync(claudePath)) {
+            fs.copyFileSync(sharedPath, claudePath);
+            console.log(`[OK] Migrated ${item.name} to ~/.claude/${item.name}`);
+          }
         }
       } catch (err) {
-        console.log(`[!] Failed to migrate ${dir}: ${err.message}`);
+        console.log(`[!] Failed to migrate ${item.name}: ${err.message}`);
       }
     }
 
@@ -249,6 +285,87 @@ class SharedManager {
     }
 
     console.log('[OK] Migration to v3.2.0 complete');
+  }
+
+  /**
+   * Migrate existing instances from isolated to shared settings.json (v4.4+)
+   * Runs once on upgrade
+   */
+  migrateToSharedSettings() {
+    console.log('[i] Migrating instances to shared settings.json...');
+
+    // Ensure ~/.claude/settings.json exists (authoritative source)
+    const claudeSettings = path.join(this.claudeDir, 'settings.json');
+    if (!fs.existsSync(claudeSettings)) {
+      // Create empty settings if missing
+      fs.writeFileSync(claudeSettings, JSON.stringify({}, null, 2), 'utf8');
+      console.log('[i] Created ~/.claude/settings.json');
+    }
+
+    // Ensure shared settings.json symlink exists
+    this.ensureSharedDirectories();
+
+    // Migrate each instance
+    if (!fs.existsSync(this.instancesDir)) {
+      console.log('[i] No instances to migrate');
+      return;
+    }
+
+    const instances = fs.readdirSync(this.instancesDir).filter(name => {
+      const instancePath = path.join(this.instancesDir, name);
+      return fs.statSync(instancePath).isDirectory();
+    });
+
+    let migrated = 0;
+    let skipped = 0;
+
+    for (const instance of instances) {
+      const instancePath = path.join(this.instancesDir, instance);
+      const instanceSettings = path.join(instancePath, 'settings.json');
+
+      try {
+        // Check if already symlink
+        if (fs.existsSync(instanceSettings)) {
+          const stats = fs.lstatSync(instanceSettings);
+          if (stats.isSymbolicLink()) {
+            skipped++;
+            continue; // Already migrated
+          }
+
+          // Backup existing settings
+          const backup = instanceSettings + '.pre-shared-migration';
+          if (!fs.existsSync(backup)) {
+            fs.copyFileSync(instanceSettings, backup);
+            console.log(`[i] Backed up ${instance}/settings.json`);
+          }
+
+          // Remove old settings.json
+          fs.unlinkSync(instanceSettings);
+        }
+
+        // Create symlink via SharedManager
+        const sharedSettings = path.join(this.sharedDir, 'settings.json');
+
+        try {
+          fs.symlinkSync(sharedSettings, instanceSettings, 'file');
+          migrated++;
+        } catch (err) {
+          // Windows fallback
+          if (process.platform === 'win32') {
+            fs.copyFileSync(sharedSettings, instanceSettings);
+            console.log(`[!] Symlink failed for ${instance}, copied instead`);
+            migrated++;
+          } else {
+            throw err;
+          }
+        }
+
+      } catch (err) {
+        console.log(`[!] Failed to migrate ${instance}: ${err.message}`);
+      }
+    }
+
+    console.log(`[OK] Migrated ${migrated} instance(s), skipped ${skipped}`);
   }
 
   /**

@@ -97,6 +97,9 @@ function createConfigFiles() {
       const sharedManager = new SharedManager();
       sharedManager.migrateFromV311();
       sharedManager.ensureSharedDirectories();
+
+      // Run v4.4 migration: Migrate instances to shared settings.json
+      sharedManager.migrateToSharedSettings();
     } catch (err) {
       console.warn('[!] Migration warning:', err.message);
       console.warn('    Migration will retry on next run');

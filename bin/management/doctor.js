@@ -117,6 +117,7 @@ class Doctor {
     console.log(colored('System Health:', 'bold'));
     this.checkPermissions();
     this.checkCcsSymlinks();
+    this.checkSettingsSymlinks();
     console.log('');
 
     this.showReport();
@@ -498,6 +499,127 @@ class Doctor {
         'Could not check CCS symlinks: ' + e.message,
         'Run: ccs sync',
         { status: 'WARN', info: 'Could not check' }
+      );
+    }
+  }
+
+  /**
+   * Check 10: settings.json symlinks
+   */
+  checkSettingsSymlinks() {
+    const spinner = ora('Checking settings.json symlinks').start();
+
+    try {
+      const sharedDir = path.join(this.homedir, '.ccs', 'shared');
+      const sharedSettings = path.join(sharedDir, 'settings.json');
+      const claudeSettings = path.join(this.claudeDir, 'settings.json');
+
+      // Check shared settings exists and points to ~/.claude/
+      if (!fs.existsSync(sharedSettings)) {
+        spinner.warn(`  ${'settings.json (shared)'.padEnd(26)}${colored('[!]', 'yellow')}  Not found`);
+        this.results.addCheck(
+          'Settings Symlinks',
+          'warning',
+          'Shared settings.json not found',
+          'Run: ccs sync'
+        );
+        return;
+      }
+
+      const sharedStats = fs.lstatSync(sharedSettings);
+      if (!sharedStats.isSymbolicLink()) {
+        spinner.warn(`  ${'settings.json (shared)'.padEnd(26)}${colored('[!]', 'yellow')}  Not a symlink`);
+        this.results.addCheck(
+          'Settings Symlinks',
+          'warning',
+          'Shared settings.json is not a symlink',
+          'Run: ccs sync'
+        );
+        return;
+      }
+
+      const sharedTarget = fs.readlinkSync(sharedSettings);
+      const resolvedShared = path.resolve(path.dirname(sharedSettings), sharedTarget);
+
+      if (resolvedShared !== claudeSettings) {
+        spinner.warn(`  ${'settings.json (shared)'.padEnd(26)}${colored('[!]', 'yellow')}  Wrong target`);
+        this.results.addCheck(
+          'Settings Symlinks',
+          'warning',
+          `Points to ${resolvedShared} instead of ${claudeSettings}`,
+          'Run: ccs sync'
+        );
+        return;
+      }
+
+      // Check each instance
+      const instancesDir = path.join(this.ccsDir, 'instances');
+      if (!fs.existsSync(instancesDir)) {
+        spinner.succeed(`  ${'settings.json'.padEnd(26)}${colored('[OK]', 'green')}  Shared symlink valid`);
+        this.results.addCheck('Settings Symlinks', 'success', 'Shared symlink valid', null, {
+          status: 'OK',
+          info: 'Shared symlink valid'
+        });
+        return;
+      }
+
+      const instances = fs.readdirSync(instancesDir).filter(name => {
+        return fs.statSync(path.join(instancesDir, name)).isDirectory();
+      });
+
+      let broken = 0;
+      for (const instance of instances) {
+        const instancePath = path.join(instancesDir, instance);
+        const instanceSettings = path.join(instancePath, 'settings.json');
+
+        if (!fs.existsSync(instanceSettings)) {
+          broken++;
+          continue;
+        }
+
+        try {
+          const stats = fs.lstatSync(instanceSettings);
+          if (!stats.isSymbolicLink()) {
+            broken++;
+            continue;
+          }
+
+          const target = fs.readlinkSync(instanceSettings);
+          const resolved = path.resolve(path.dirname(instanceSettings), target);
+
+          if (resolved !== sharedSettings) {
+            broken++;
+          }
+        } catch (err) {
+          broken++;
+        }
+      }
+
+      if (broken > 0) {
+        spinner.warn(`  ${'settings.json'.padEnd(26)}${colored('[!]', 'yellow')}  ${broken} broken instance(s)`);
+        this.results.addCheck(
+          'Settings Symlinks',
+          'warning',
+          `${broken} instance(s) have broken symlinks`,
+          'Run: ccs sync',
+          { status: 'WARN', info: `${broken} broken instance(s)` }
+        );
+      } else {
+        spinner.succeed(`  ${'settings.json'.padEnd(26)}${colored('[OK]', 'green')}  ${instances.length} instance(s) valid`);
+        this.results.addCheck('Settings Symlinks', 'success', 'All instance symlinks valid', null, {
+          status: 'OK',
+          info: `${instances.length} instance(s) valid`
+        });
+      }
+
+    } catch (err) {
+      spinner.warn(`  ${'settings.json'.padEnd(26)}${colored('[!]', 'yellow')}  Check failed`);
+      this.results.addCheck(
+        'Settings Symlinks',
+        'warning',
+        `Failed to check: ${err.message}`,
+        'Run: ccs sync',
+        { status: 'WARN', info: 'Check failed' }
       );
     }
   }

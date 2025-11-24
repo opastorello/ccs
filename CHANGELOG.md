@@ -2,6 +2,24 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [4.4.0] - 2025-11-23
+
+### Changed
+- **BREAKING**: settings.json now shared across profiles via symlinks
+  - Each profile previously had isolated settings.json
+  - Now all profiles share ~/.claude/settings.json
+  - Migration automatic on install (uses ~/.claude/settings.json)
+  - Backups created: `<instance>/settings.json.pre-shared-migration`
+  - Rollback: restore backup manually if needed
+
+### Added
+- Doctor validates settings.json symlink integrity
+- Sync repairs broken settings.json symlinks
+- Migration from isolated to shared settings (automatic)
+
+### Fixed
+- Consistent shared data architecture across all .claude/ items
+
 ## [4.3.10] - 2025-11-23
 
 ### Fixed
