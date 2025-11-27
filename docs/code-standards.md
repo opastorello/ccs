@@ -691,6 +691,28 @@ spawn('sh', ['-c', `claude --settings ${settingsPath} ${command}`]);
 
 ## Quality Assurance Standards
 
+### ESLint Quality Gates (Phase 01 Enhanced)
+
+**Strict TypeScript Rules** (enforced as errors):
+- ✅ `@typescript-eslint/no-unused-vars`: Zero unused variables, imports, or parameters
+- ✅ `@typescript-eslint/no-explicit-any`: No explicit `any` types allowed (use `unknown` or proper types)
+- ✅ `@typescript-eslint/no-non-null-assertion`: No non-null assertions (`value!`) - use explicit checks
+
+**Quality Validation Commands**:
+```bash
+bun run validate      # Full validation: typecheck + lint + format + test
+bun run typecheck     # TypeScript compilation (tsc --noEmit)
+bun run lint          # ESLint validation (must show 0 errors)
+bun run format        # Prettier formatting
+bun run test          # Test suite execution
+```
+
+**Pre-commit Requirements**:
+- All ESLint rules must pass (zero errors, zero warnings)
+- TypeScript compilation must succeed
+- All tests must pass
+- Code must be properly formatted
+
 ### Code Review Checklist
 Before submitting code, verify:
 - [ ] Follows all coding standards
@@ -699,6 +721,7 @@ Before submitting code, verify:
 - [ ] No console.log statements left in production code
 - [ ] Error handling is comprehensive
 - [ ] Cross-platform compatibility is maintained
+- [ ] **ESLint strictness rules pass** (no unused vars, no explicit any, no non-null assertions)
 
 ### Release Checklist
 Before releasing new version:
@@ -733,6 +756,7 @@ These code standards ensure the CCS codebase remains:
 - **Secure**: Safe process execution, symlink validation, file handling
 - **Compatible**: Cross-platform symlinking, Windows fallbacks, unified behavior
 - **Extensible**: Clean subsystem boundaries, reusable patterns
+- **Type-Safe**: Enhanced ESLint strictness enforces zero-tolerance for code quality issues
 
 **v4.x Specific Standards**:
 - **Delegation patterns**: Stream-JSON parsing, session management, headless execution

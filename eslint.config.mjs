@@ -17,15 +17,14 @@ export default [
       '@typescript-eslint': tseslint,
     },
     rules: {
-      // TypeScript rules - warnings for now, upgrade to errors incrementally
-      // TODO: Upgrade these to 'error' as codebase is cleaned up
+      // TypeScript rules - upgraded to errors for stricter type safety
       '@typescript-eslint/no-unused-vars': [
-        'warn',
+        'error',
         { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' },
       ],
-      '@typescript-eslint/no-explicit-any': 'warn',
+      '@typescript-eslint/no-explicit-any': 'error',
       '@typescript-eslint/explicit-function-return-type': 'off',
-      '@typescript-eslint/no-non-null-assertion': 'warn',
+      '@typescript-eslint/no-non-null-assertion': 'error',
 
       // General code quality
       'no-console': 'off', // CLI tool needs console
