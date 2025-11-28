@@ -27,13 +27,19 @@ export function handleHelpCommand(): void {
 
   console.log(colored('Model Switching:', 'cyan'));
   console.log(`  ${colored('ccs', 'yellow')}                         Use default Claude account`);
-  console.log(`  ${colored('ccs glm', 'yellow')}                     Switch to GLM 4.6 model`);
   console.log(
-    `  ${colored('ccs glmt', 'yellow')}                    Switch to GLM with thinking mode`
+    `  ${colored('ccs chatgpt', 'yellow')}                  ChatGPT via OAuth (zero config)`
   );
-  console.log(`  ${colored('ccs glmt --verbose', 'yellow')}          Enable debug logging`);
-  console.log(`  ${colored('ccs kimi', 'yellow')}                    Switch to Kimi for Coding`);
-  console.log(`  ${colored('ccs glm', 'yellow')} "debug this code"   Use GLM and run command`);
+  console.log(
+    `  ${colored('ccs gemini', 'yellow')}                   Gemini via OAuth (zero config)`
+  );
+  console.log(`  ${colored('ccs glm', 'yellow')}                      GLM 4.6 (API key required)`);
+  console.log(`  ${colored('ccs glmt', 'yellow')}                     GLM with thinking mode`);
+  console.log(`  ${colored('ccs kimi', 'yellow')}                     Kimi for Coding (API key)`);
+  console.log(
+    `  ${colored('ccs qwen', 'yellow')}                     Qwen via OAuth (zero config)`
+  );
+  console.log(`  ${colored('ccs gemini', 'yellow')} "explain this"   Use Gemini with prompt`);
   console.log('');
 
   console.log(colored('Account Management:', 'cyan'));
@@ -94,6 +100,7 @@ export function handleHelpCommand(): void {
 
   console.log(colored('Examples:', 'cyan'));
   console.log(`  ${colored('$ ccs', 'yellow')}                        # Use default account`);
+  console.log(`  ${colored('$ ccs gemini "explain code"', 'yellow')}  # Zero-config OAuth`);
   console.log(`  ${colored('$ ccs glm "implement API"', 'yellow')}    # Cost-optimized model`);
   console.log('');
   console.log(

@@ -9,6 +9,14 @@ import { spawn } from 'child_process';
 import { colored } from '../utils/helpers';
 import { detectClaudeCli } from '../utils/claude-detector';
 import packageJson from '../../package.json';
+import {
+  isCLIProxyInstalled,
+  getCLIProxyPath,
+  isPortAvailable,
+  getAllAuthStatus,
+  CLIPROXY_VERSION,
+  CLIPROXY_DEFAULT_PORT,
+} from '../cliproxy';
 
 // Make ora optional (might not be available during npm install postinstall)
 // ora v9+ is an ES module, need to use .default for CommonJS
@@ -154,6 +162,11 @@ class Doctor {
     this.checkPermissions();
     this.checkCcsSymlinks();
     this.checkSettingsSymlinks();
+    console.log('');
+
+    // Group 5: CLIProxy (OAuth profiles)
+    console.log(colored('CLIProxy (OAuth Profiles):', 'bold'));
+    await this.checkCLIProxy();
     console.log('');
 
     this.showReport();
@@ -735,6 +748,112 @@ class Doctor {
         `Failed to check: ${(err as Error).message}`,
         'Run: ccs sync',
         { status: 'WARN', info: 'Check failed' }
+      );
+    }
+  }
+
+  /**
+   * Check 11: CLIProxy health (OAuth profiles: gemini, chatgpt, qwen)
+   */
+  private async checkCLIProxy(): Promise<void> {
+    // 1. Binary installed?
+    const binarySpinner = ora('Checking CLIProxy binary').start();
+
+    if (isCLIProxyInstalled()) {
+      const binaryPath = getCLIProxyPath();
+      binarySpinner.succeed(
+        `  ${'CLIProxy Binary'.padEnd(26)}${colored('[OK]', 'green')}  v${CLIPROXY_VERSION}`
+      );
+      this.results.addCheck('CLIProxy Binary', 'success', undefined, undefined, {
+        status: 'OK',
+        info: `v${CLIPROXY_VERSION} (${binaryPath})`,
+      });
+    } else {
+      binarySpinner.info(
+        `  ${'CLIProxy Binary'.padEnd(26)}${colored('[i]', 'cyan')}  Not installed (downloads on first use)`
+      );
+      this.results.addCheck(
+        'CLIProxy Binary',
+        'success',
+        'Not installed yet',
+        'Run: ccs gemini "test" (will download automatically)',
+        { status: 'OK', info: 'Not installed (downloads on first use)' }
+      );
+    }
+
+    // 2. Config file exists?
+    const configSpinner = ora('Checking CLIProxy config').start();
+    const configPath = path.join(this.ccsDir, 'cliproxy.config.yaml');
+
+    if (fs.existsSync(configPath)) {
+      configSpinner.succeed(
+        `  ${'CLIProxy Config'.padEnd(26)}${colored('[OK]', 'green')}  cliproxy.config.yaml`
+      );
+      this.results.addCheck('CLIProxy Config', 'success', undefined, undefined, {
+        status: 'OK',
+        info: 'cliproxy.config.yaml',
+      });
+    } else {
+      configSpinner.info(
+        `  ${'CLIProxy Config'.padEnd(26)}${colored('[i]', 'cyan')}  Not created (generated on first use)`
+      );
+      this.results.addCheck('CLIProxy Config', 'success', 'Not created yet', undefined, {
+        status: 'OK',
+        info: 'Generated on first use',
+      });
+    }
+
+    // 3. OAuth status for each provider
+    const authStatuses = getAllAuthStatus();
+    for (const status of authStatuses) {
+      const authSpinner = ora(`Checking ${status.provider} auth`).start();
+      const providerName = status.provider.charAt(0).toUpperCase() + status.provider.slice(1);
+
+      if (status.authenticated) {
+        const lastAuth = status.lastAuth ? ` (${status.lastAuth.toLocaleDateString()})` : '';
+        authSpinner.succeed(
+          `  ${`${providerName} Auth`.padEnd(26)}${colored('[OK]', 'green')}  Authenticated${lastAuth}`
+        );
+        this.results.addCheck(`${providerName} Auth`, 'success', undefined, undefined, {
+          status: 'OK',
+          info: `Authenticated${lastAuth}`,
+        });
+      } else {
+        authSpinner.info(
+          `  ${`${providerName} Auth`.padEnd(26)}${colored('[i]', 'cyan')}  Not authenticated`
+        );
+        this.results.addCheck(
+          `${providerName} Auth`,
+          'success',
+          'Not authenticated',
+          `Run: ccs ${status.provider} --auth`,
+          { status: 'OK', info: 'Not authenticated (run ccs <profile> to login)' }
+        );
+      }
+    }
+
+    // 4. Port availability
+    const portSpinner = ora(`Checking port ${CLIPROXY_DEFAULT_PORT}`).start();
+    const portAvailable = await isPortAvailable(CLIPROXY_DEFAULT_PORT);
+
+    if (portAvailable) {
+      portSpinner.succeed(
+        `  ${'CLIProxy Port'.padEnd(26)}${colored('[OK]', 'green')}  ${CLIPROXY_DEFAULT_PORT} available`
+      );
+      this.results.addCheck('CLIProxy Port', 'success', undefined, undefined, {
+        status: 'OK',
+        info: `Port ${CLIPROXY_DEFAULT_PORT} available`,
+      });
+    } else {
+      portSpinner.warn(
+        `  ${'CLIProxy Port'.padEnd(26)}${colored('[!]', 'yellow')}  ${CLIPROXY_DEFAULT_PORT} in use`
+      );
+      this.results.addCheck(
+        'CLIProxy Port',
+        'warning',
+        `Port ${CLIPROXY_DEFAULT_PORT} is in use`,
+        `Check: lsof -i :${CLIPROXY_DEFAULT_PORT}`,
+        { status: 'WARN', info: `Port ${CLIPROXY_DEFAULT_PORT} in use` }
       );
     }
   }

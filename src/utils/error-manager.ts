@@ -157,4 +157,89 @@ export class ErrorManager {
     console.error('');
     this.showErrorCode(ERROR_CODES.FS_CANNOT_WRITE_FILE);
   }
+
+  /**
+   * Show CLIProxy OAuth timeout error
+   */
+  static showOAuthTimeout(provider: string): void {
+    console.error('');
+    console.error(colored('+---------------------------------------------------------+', 'red'));
+    console.error(colored('|                   OAuth Timeout                         |', 'red'));
+    console.error(colored('+---------------------------------------------------------+', 'red'));
+    console.error('');
+    console.error('Authentication did not complete within 2 minutes.');
+    console.error('');
+    console.error(colored('Troubleshooting:', 'yellow'));
+    console.error('  1. Check if browser opened (popup blocker?)');
+    console.error('  2. Complete login in browser, then return here');
+    console.error('  3. Try different browser');
+    console.error('  4. Disable browser extensions temporarily');
+    console.error('');
+    console.error(colored('For headless/SSH environments:', 'cyan'));
+    console.error(`  ccs ${provider} --auth --headless`);
+    console.error('');
+    console.error('This displays manual authentication steps.');
+    console.error('');
+  }
+
+  /**
+   * Show CLIProxy port conflict error
+   */
+  static showPortConflict(port: number): void {
+    console.error('');
+    console.error(colored('+---------------------------------------------------------+', 'red'));
+    console.error(colored('|                   Port Conflict                         |', 'red'));
+    console.error(colored('+---------------------------------------------------------+', 'red'));
+    console.error('');
+    console.error(`CLIProxy port ${port} is already in use.`);
+    console.error('');
+    console.error(colored('Solutions:', 'yellow'));
+    console.error('  1. Find process using port:');
+    console.error(`     lsof -i :${port}           (macOS/Linux)`);
+    console.error(`     netstat -ano | findstr ${port}  (Windows)`);
+    console.error('');
+    console.error('  2. Kill the process:');
+    console.error(`     lsof -ti:${port} | xargs kill -9`);
+    console.error('');
+    console.error('  3. Wait and retry (process may exit on its own)');
+    console.error('');
+  }
+
+  /**
+   * Show CLIProxy binary download failure error
+   */
+  static showBinaryDownloadFailed(url: string, error: string): void {
+    console.error('');
+    console.error(colored('+---------------------------------------------------------+', 'red'));
+    console.error(colored('|                Binary Download Failed                   |', 'red'));
+    console.error(colored('+---------------------------------------------------------+', 'red'));
+    console.error('');
+    console.error(`Error: ${error}`);
+    console.error('');
+    console.error(colored('Troubleshooting:', 'yellow'));
+    console.error('  1. Check internet connection');
+    console.error('  2. Check firewall/proxy settings');
+    console.error('  3. Try again in a few minutes');
+    console.error('');
+    console.error(colored('Manual download:', 'cyan'));
+    console.error(`  URL: ${url}`);
+    console.error('  Save to: ~/.ccs/bin/cliproxyapi');
+    console.error('  chmod +x ~/.ccs/bin/cliproxyapi');
+    console.error('');
+  }
+
+  /**
+   * Show CLIProxy authentication required error
+   */
+  static showAuthRequired(provider: string): void {
+    console.error('');
+    console.error(colored(`[X] ${provider} authentication required`, 'red'));
+    console.error('');
+    console.error(colored('To authenticate:', 'yellow'));
+    console.error(`  ccs ${provider} --auth`);
+    console.error('');
+    console.error('This will open a browser for OAuth login.');
+    console.error('After login, you can use the profile normally.');
+    console.error('');
+  }
 }

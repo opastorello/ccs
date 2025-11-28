@@ -13,6 +13,7 @@ import * as fs from 'fs';
 import { detectClaudeCli } from './utils/claude-detector';
 import { getSettingsPath } from './utils/config-manager';
 import { ErrorManager } from './utils/error-manager';
+import { execClaudeWithCLIProxy, CLIProxyProvider } from './cliproxy';
 
 // Import extracted command handlers
 import { handleVersionCommand } from './commands/version-command';
@@ -293,7 +294,10 @@ async function main(): Promise<void> {
   try {
     const profileInfo = detector.detectProfileType(profile);
 
-    if (profileInfo.type === 'settings') {
+    if (profileInfo.type === 'cliproxy') {
+      // CLIPROXY FLOW: OAuth-based profiles (gemini, chatgpt, qwen)
+      await execClaudeWithCLIProxy(claudeCli, profileInfo.name as CLIProxyProvider, remainingArgs);
+    } else if (profileInfo.type === 'settings') {
       // Check if this is GLMT profile (requires proxy)
       if (profileInfo.name === 'glmt') {
         // GLMT FLOW: Settings-based with embedded proxy for thinking support

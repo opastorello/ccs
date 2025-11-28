@@ -2,6 +2,74 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [5.0.0] - 2025-11-28
+
+### Added
+- **CLIProxy OAuth Profiles**: Three new zero-config profiles powered by CLIProxyAPI
+  - `ccs gemini` - Google Gemini via OAuth (zero config)
+  - `ccs chatgpt` - ChatGPT/OpenAI Codex via OAuth (zero config)
+  - `ccs qwen` - Alibaba Qwen via OAuth (zero config)
+
+- **Download-on-Demand Binary**: CLIProxyAPI binary (~15MB) downloads automatically on first use
+  - Supports 6 platforms: darwin/linux/windows × amd64/arm64
+  - SHA256 checksum verification
+  - 3x retry with exponential backoff
+  - No npm package size impact
+
+- **OAuth Authentication System** (`src/cliproxy/auth-handler.ts`):
+  - Browser-based OAuth flow with automatic token storage
+  - Headless mode fallback (`ccs gemini --auth --headless`)
+  - Token storage in `~/.ccs/cliproxy-auth/<provider>/`
+  - 2-minute OAuth timeout protection
+
+- **CLIProxy Diagnostics** in `ccs doctor`:
+  - Binary installation status + version
+  - Config file validation
+  - OAuth status per provider (gemini/chatgpt/qwen)
+  - Port 8317 availability check
+
+- **Enhanced Error Messages** (`src/utils/error-manager.ts`):
+  - OAuth timeout troubleshooting
+  - Port conflict resolution
+  - Binary download failure with manual URL
+
+- **New CLIProxy Module** (`src/cliproxy/`):
+  - `binary-manager.ts` - Download, verify, extract binary
+  - `platform-detector.ts` - OS/arch detection for 6 platforms
+  - `cliproxy-executor.ts` - Spawn/kill proxy pattern
+  - `config-generator.ts` - Generate config.yaml per provider
+  - `auth-handler.ts` - OAuth token management
+  - `types.ts` - TypeScript type definitions
+  - `index.ts` - Central exports
+
+### Changed
+- **Profile Detection**: New priority order
+  1. CLIProxy profiles (gemini, chatgpt, qwen)
+  2. Settings-based profiles (glm, glmt, kimi)
+  3. Account-based profiles (work, personal)
+  4. Default Claude CLI
+- **Help Text**: Updated with new OAuth profiles (alphabetically sorted)
+- **Profile Detector**: Added `cliproxy` profile type
+
+### Technical Details
+- **Binary Version**: CLIProxyAPI v6.5.27
+- **Default Port**: 8317 (TCP polling for readiness, no PROXY_READY signal)
+- **Model Mappings**:
+  - Gemini: gemini-2.0-flash (opus: thinking-exp, haiku: flash-lite)
+  - ChatGPT: gpt-4o (opus: o1, haiku: gpt-4o-mini)
+  - Qwen: qwen-max (sonnet: qwen-plus, haiku: qwen-turbo)
+- **Storage**:
+  - Binary: `~/.ccs/bin/cliproxyapi`
+  - Tokens: `~/.ccs/cliproxy-auth/<provider>/`
+  - Config: `~/.ccs/cliproxy.config.yaml`
+
+### Migration
+- **No breaking changes**: All existing profiles (glm, glmt, kimi, accounts) work unchanged
+- **Zero configuration**: OAuth profiles work out-of-box after browser login
+- **Backward compatible**: v4.x commands and workflows unchanged
+
+---
+
 ## [4.5.0] - 2025-11-27 (Phase 02 Complete)
 
 ### Changed

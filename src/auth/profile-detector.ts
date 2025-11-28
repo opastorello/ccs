@@ -11,7 +11,11 @@ import * as os from 'os';
 import { findSimilarStrings } from '../utils/helpers';
 import { Config, Settings, ProfileMetadata } from '../types';
 
-export type ProfileType = 'settings' | 'account' | 'default';
+export type ProfileType = 'settings' | 'account' | 'cliproxy' | 'default';
+
+/** CLIProxy profile names (OAuth-based, zero config) */
+export const CLIPROXY_PROFILES = ['gemini', 'chatgpt', 'qwen'] as const;
+export type CLIProxyProfileName = (typeof CLIPROXY_PROFILES)[number];
 
 export interface ProfileDetectionResult {
   type: ProfileType;
@@ -88,6 +92,14 @@ class ProfileDetector {
       return this.resolveDefaultProfile();
     }
 
+    // Priority 0: Check CLIProxy profiles (gemini, chatgpt, qwen) - OAuth-based, zero config
+    if (CLIPROXY_PROFILES.includes(profileName as CLIProxyProfileName)) {
+      return {
+        type: 'cliproxy',
+        name: profileName,
+      };
+    }
+
     // Priority 1: Check settings-based profiles (glm, kimi) - BACKWARD COMPATIBILITY
     const config = this.readConfig();
 
@@ -162,6 +174,12 @@ class ProfileDetector {
   private listAvailableProfiles(): string {
     const lines: string[] = [];
 
+    // CLIProxy profiles (OAuth-based, always available)
+    lines.push('CLIProxy profiles (OAuth, zero config):');
+    CLIPROXY_PROFILES.forEach((name) => {
+      lines.push(`  - ${name}`);
+    });
+
     // Settings-based profiles
     const config = this.readConfig();
     const settingsProfiles = Object.keys(config.profiles || {});
@@ -185,13 +203,6 @@ class ProfileDetector {
       });
     }
 
-    if (lines.length === 0) {
-      return (
-        '  (no profiles configured)\n' +
-        '  Run "ccs auth save <profile>" to create your first account profile.'
-      );
-    }
-
     return lines.join('\n');
   }
 
@@ -210,13 +221,14 @@ class ProfileDetector {
   /**
    * Get all available profile names
    */
-  getAllProfiles(): AllProfiles {
+  getAllProfiles(): AllProfiles & { cliproxy: string[] } {
     const config = this.readConfig();
     const profiles = this.readProfiles();
 
     return {
       settings: Object.keys(config.profiles || {}),
       accounts: Object.keys(profiles.profiles || {}),
+      cliproxy: [...CLIPROXY_PROFILES],
       default: profiles.default,
     };
   }
