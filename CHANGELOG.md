@@ -1,3 +1,10 @@
+# [5.2.0](https://github.com/kaitranntt/ccs/compare/v5.1.1...v5.2.0) (2025-12-01)
+
+
+### Features
+
+* **release:** trigger v5.2.0 release ([7b65374](https://github.com/kaitranntt/ccs/commit/7b65374100196562a4f83705c8626fc7e6bb35d6))
+
 ## [5.1.1](https://github.com/kaitranntt/ccs/compare/v5.1.0...v5.1.1) (2025-12-01)
 
 
