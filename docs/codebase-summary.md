@@ -6,7 +6,7 @@ CCS (Claude Code Switch) v4.5.0 is a lightweight CLI wrapper enabling instant pr
 
 ## Version Evolution
 
-### v4.5.0 Architecture (Current, Phase 02 Complete - 2025-11-28)
+### v4.5.0 Architecture (Current, Phase 02 Complete - 2025-11-28, UI Phase 1 - 2025-12-01)
 - **Total LOC**: ~8,477 lines (JavaScript/TypeScript)
 - **Main File**: src/ccs.ts - 593 lines (**44.6% reduction** from 1,071 lines)
 - **Key Features**: AI delegation, stream-JSON output, shell completion, doctor diagnostics, sync command
@@ -271,13 +271,14 @@ src/                         # TypeScript source files (Phase 02 Modular Archite
 │   ├── instance-manager.ts    # Instance lifecycle (~220 lines)
 │   ├── recovery-manager.ts    # Auto-recovery (~80 lines)
 │   └── shared-manager.ts      # Shared symlinking (~50 lines)
-├── utils/              # Utilities (expanded in v4.x + Phase 02)
+├── utils/              # Utilities (expanded in v4.x + Phase 02, UI Phase 1)
 │   ├── claude-detector.ts         # CLI detection (~70 lines)
 │   ├── claude-dir-installer.ts    # .claude/ installer (v4.1.1, ~150 lines)
 │   ├── claude-symlink-manager.ts  # Selective symlinks (v4.1, ~200 lines)
 │   ├── config-manager.ts          # Config management (~80 lines)
 │   ├── shell-executor.ts          # 1.5KB - Cross-platform execution (Phase 02 NEW)
 │   ├── package-manager-detector.ts # 3.8KB - Package manager detection (Phase 02 NEW)
+│   ├── ui.ts                      # 5.2KB - Central UI abstraction (UI Phase 1 NEW)
 │   ├── delegation-validator.js    # Delegation validation (v4.0, ~100 lines)
 │   ├── error-codes.js             # Error codes (~50 lines)
 │   ├── error-manager.js           # Error handling (~200 lines)
@@ -424,7 +425,23 @@ ccs.js: execClaude(["command"], {CLAUDE_CONFIG_DIR: instancePath})
 Claude CLI: Read credentials from instance, execute
 ```
 
-## Key Features (v4.5.0 - Phase 02 Complete)
+## Key Features (v4.5.0 - Phase 02 Complete, UI Phase 1)
+
+### 0. Central UI Abstraction Layer (UI Phase 1 - 2025-12-01)
+- **New Module**: src/utils/ui.ts (5.2KB) - Semantic, TTY-aware CLI styling
+- **Dependencies**: chalk@5.6.2, boxen@8.0.1, gradient-string@3.0.0, cli-table3@0.6.5, ora@5.4.1
+- **Features**:
+  - Semantic color system (success, error, warning, info, dim, primary, secondary, command, path)
+  - ASCII-only status indicators ([OK], [X], [!], [i]) - NO EMOJIS per CLAUDE.md
+  - TTY-aware output (respects NO_COLOR, FORCE_COLOR env vars)
+  - Box rendering (with fallback ASCII renderer)
+  - Table rendering via cli-table3
+  - Spinner/progress (ora wrapper with fallback)
+  - Section headers with optional gradient
+  - Lazy loading of ESM modules for CommonJS compatibility
+- **Type Support**: SemanticColor, BoxOptions, TableOptions, SpinnerOptions, SpinnerController
+- **Compliance**: Strict CLAUDE.md adherence (no emojis, TTY-aware, NO_COLOR respect)
+- **Fallback Architecture**: Works in non-TTY environments with graceful degradation
 
 ### 1. npm-First Installation (Phase 02 - 2025-11-28)
 - **Recommended method**: All users directed to npm installation
@@ -551,6 +568,14 @@ Claude CLI: Read credentials from instance, execute
 5. **Cost optimization**: Model selection based on task complexity
 
 ## Summary
+
+**CCS UI Phase 1 Achievements (2025-12-01)**:
+- **Central UI Module**: Introduced src/utils/ui.ts for semantic, TTY-aware CLI styling
+- **CLAUDE.md Compliance**: ASCII-only indicators, NO_COLOR respect, TTY detection
+- **ESM Compatibility**: Lazy loading strategy for chalk, boxen, gradient-string, ora in CommonJS project
+- **Fallback Architecture**: Works in non-TTY (pipes/CI) with graceful degradation to plain text
+- **Type System**: Complete TypeScript definitions for all UI functions
+- **Color Palette**: Professional cyan-to-blue gradient (#00ECFA to #0099FF)
 
 **CCS Phase 02 Achievements (2025-11-28)**:
 - **npm-First Distribution**: Deprecated native shell installers, all users directed to npm
