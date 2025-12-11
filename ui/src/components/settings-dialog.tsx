@@ -1,10 +1,10 @@
 /**
  * Settings Dialog Component
  * Reusable dialog for editing profile environment variables
- * Features: masked inputs for sensitive keys, conflict detection, save/cancel
+ * Features: masked inputs for sensitive keys, conflict detection, save/cancel, raw JSON editor
  */
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, lazy, Suspense } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Dialog,
@@ -18,8 +18,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { MaskedInput } from '@/components/ui/masked-input';
 import { ConfirmDialog } from '@/components/confirm-dialog';
-import { Save, X, Loader2 } from 'lucide-react';
+import { Save, X, Loader2, Code2 } from 'lucide-react';
 import { toast } from 'sonner';
+
+// Lazy load CodeEditor to reduce initial bundle size
+const CodeEditor = lazy(() =>
+  import('@/components/code-editor').then((m) => ({ default: m.CodeEditor }))
+);
 
 interface Settings {
   env?: Record<string, string>;
@@ -55,6 +60,8 @@ function SettingsDialogContent({
 }) {
   const [localEdits, setLocalEdits] = useState<Record<string, string>>({});
   const [conflictDialog, setConflictDialog] = useState(false);
+  const [rawJsonEdits, setRawJsonEdits] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState('env');
   const queryClient = useQueryClient();
 
   // Fetch settings for selected profile
@@ -62,6 +69,23 @@ function SettingsDialogContent({
     queryKey: ['settings', profileName],
     queryFn: () => fetch(`/api/settings/${profileName}/raw`).then((r) => r.json()),
   });
+
+  // Derive raw JSON content: use edits if available, otherwise serialize from data
+  const settings = data?.settings;
+  const rawJsonContent = useMemo(() => {
+    if (rawJsonEdits !== null) {
+      return rawJsonEdits;
+    }
+    if (settings) {
+      return JSON.stringify(settings, null, 2);
+    }
+    return '';
+  }, [rawJsonEdits, settings]);
+
+  // Update raw JSON when user edits
+  const handleRawJsonChange = useCallback((value: string) => {
+    setRawJsonEdits(value);
+  }, []);
 
   // Derive current settings by merging original data with local edits
   const currentSettings = useMemo((): Settings | undefined => {
@@ -76,16 +100,39 @@ function SettingsDialogContent({
     };
   }, [data?.settings, localEdits]);
 
+  // Check if raw JSON is valid
+  const isRawJsonValid = useMemo(() => {
+    try {
+      JSON.parse(rawJsonContent);
+      return true;
+    } catch {
+      return false;
+    }
+  }, [rawJsonContent]);
+
   // Save mutation
   const saveMutation = useMutation({
     mutationFn: async () => {
-      const settingsToSave: Settings = {
-        ...data?.settings,
-        env: {
-          ...data?.settings?.env,
-          ...localEdits,
-        },
-      };
+      let settingsToSave: Settings;
+
+      // Determine what to save based on active tab
+      if (activeTab === 'raw') {
+        // Parse raw JSON content
+        try {
+          settingsToSave = JSON.parse(rawJsonContent);
+        } catch {
+          throw new Error('Invalid JSON');
+        }
+      } else {
+        // Use form-based edits
+        settingsToSave = {
+          ...data?.settings,
+          env: {
+            ...data?.settings?.env,
+            ...localEdits,
+          },
+        };
+      }
 
       const res = await fetch(`/api/settings/${profileName}`, {
         method: 'PUT',
@@ -174,13 +221,24 @@ function SettingsDialogContent({
         </div>
       ) : (
         <div className="flex flex-col h-[60vh]">
-          <Tabs defaultValue="env" className="flex-1 flex flex-col overflow-hidden">
+          <Tabs
+            value={activeTab}
+            onValueChange={setActiveTab}
+            className="flex-1 flex flex-col overflow-hidden"
+          >
             <TabsList className="w-full justify-start border-b rounded-none p-0 h-auto bg-transparent">
               <TabsTrigger
                 value="env"
                 className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 py-2"
               >
                 Environment
+              </TabsTrigger>
+              <TabsTrigger
+                value="raw"
+                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 py-2"
+              >
+                <Code2 className="w-4 h-4 mr-1" />
+                Raw JSON
               </TabsTrigger>
               <TabsTrigger
                 value="general"
@@ -222,6 +280,24 @@ function SettingsDialogContent({
               </ScrollArea>
             </TabsContent>
 
+            <TabsContent value="raw" className="flex-1 overflow-hidden p-4 pt-4 m-0">
+              <Suspense
+                fallback={
+                  <div className="flex items-center justify-center h-full">
+                    <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                    <span className="ml-2 text-muted-foreground">Loading editor...</span>
+                  </div>
+                }
+              >
+                <CodeEditor
+                  value={rawJsonContent}
+                  onChange={handleRawJsonChange}
+                  language="json"
+                  minHeight="calc(60vh - 120px)"
+                />
+              </Suspense>
+            </TabsContent>
+
             <TabsContent value="general" className="p-4 m-0">
               <Card>
                 <CardHeader>
@@ -252,7 +328,10 @@ function SettingsDialogContent({
             <Button type="button" variant="outline" onClick={onClose}>
               <X className="w-4 h-4 mr-2" /> Cancel
             </Button>
-            <Button onClick={handleSave} disabled={saveMutation.isPending}>
+            <Button
+              onClick={handleSave}
+              disabled={saveMutation.isPending || (activeTab === 'raw' && !isRawJsonValid)}
+            >
               {saveMutation.isPending ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Saving...
