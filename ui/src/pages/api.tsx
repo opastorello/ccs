@@ -26,6 +26,7 @@ import { useProfiles, useDeleteProfile } from '@/hooks/use-profiles';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import type { Profile } from '@/lib/api-client';
 import { cn } from '@/lib/utils';
+import { CopyButton } from '@/components/ui/copy-button';
 
 export function ApiPage() {
   const { data, isLoading } = useProfiles();
@@ -74,7 +75,7 @@ export function ApiPage() {
   const selectedProfileData = profiles.find((p) => p.name === effectiveSelectedProfile);
 
   return (
-    <div className="h-[calc(100vh-60px)] flex">
+    <div className="h-[calc(100vh-100px)] flex">
       {/* Left Panel - Profiles List */}
       <div className="w-80 border-r flex flex-col bg-muted/30">
         {/* Header */}
@@ -248,7 +249,16 @@ function ProfileListItem({
       {/* Profile info */}
       <div className="flex-1 min-w-0">
         <div className="font-medium text-sm truncate">{profile.name}</div>
-        <div className="text-xs text-muted-foreground truncate">{profile.settingsPath}</div>
+        <div className="flex items-center gap-1.5 min-w-0">
+          <div className="text-xs text-muted-foreground truncate flex-1">
+            {profile.settingsPath}
+          </div>
+          <CopyButton
+            value={profile.settingsPath}
+            size="icon"
+            className="h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity"
+          />
+        </div>
       </div>
 
       {/* Actions */}
