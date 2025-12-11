@@ -31,12 +31,18 @@ export interface CreateProfile {
   baseUrl: string;
   apiKey: string;
   model?: string;
+  opusModel?: string;
+  sonnetModel?: string;
+  haikuModel?: string;
 }
 
 export interface UpdateProfile {
   baseUrl?: string;
   apiKey?: string;
   model?: string;
+  opusModel?: string;
+  sonnetModel?: string;
+  haikuModel?: string;
 }
 
 export interface Variant {

@@ -43,16 +43,18 @@ function Layout() {
   return (
     <SidebarProvider>
       <AppSidebar />
-      <main className="flex-1 overflow-auto">
-        <header className="flex h-12 items-center justify-end px-4 border-b">
+      <main className="flex-1 flex flex-col min-h-0 overflow-hidden">
+        <header className="flex h-12 items-center justify-end px-4 border-b shrink-0">
           <div className="flex items-center gap-4">
             <ConnectionIndicator />
             <ThemeToggle />
           </div>
         </header>
-        <Suspense fallback={<PageLoader />}>
-          <Outlet />
-        </Suspense>
+        <div className="flex-1 overflow-auto min-h-0">
+          <Suspense fallback={<PageLoader />}>
+            <Outlet />
+          </Suspense>
+        </div>
         <LocalhostDisclaimer />
       </main>
     </SidebarProvider>

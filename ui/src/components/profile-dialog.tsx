@@ -1,8 +1,10 @@
 /**
  * Profile Dialog Component
  * Phase 03: REST API Routes & CRUD
+ * Updated: Added model mapping fields for Opus/Sonnet/Haiku
  */
 
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -12,6 +14,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useCreateProfile, useUpdateProfile } from '@/hooks/use-profiles';
 import type { Profile } from '@/lib/api-client';
+import { ChevronDown, ChevronRight } from 'lucide-react';
+
+const DEFAULT_MODEL = 'claude-sonnet-4-5-20250929';
 
 const schema = z.object({
   name: z
@@ -21,6 +26,9 @@ const schema = z.object({
   baseUrl: z.string().url('Invalid URL'),
   apiKey: z.string().min(10, 'API key must be at least 10 characters'),
   model: z.string().optional(),
+  opusModel: z.string().optional(),
+  sonnetModel: z.string().optional(),
+  haikuModel: z.string().optional(),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -34,12 +42,14 @@ interface ProfileDialogProps {
 export function ProfileDialog({ open, onClose, profile }: ProfileDialogProps) {
   const createMutation = useCreateProfile();
   const updateMutation = useUpdateProfile();
+  const [showModelMapping, setShowModelMapping] = useState(false);
 
   const {
     register,
     handleSubmit,
     formState: { errors },
     reset,
+    watch,
   } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: profile
@@ -48,9 +58,29 @@ export function ProfileDialog({ open, onClose, profile }: ProfileDialogProps) {
           baseUrl: '',
           apiKey: '',
           model: '',
+          opusModel: '',
+          sonnetModel: '',
+          haikuModel: '',
         }
       : undefined,
   });
+
+  // Watch model field to auto-expand model mapping when custom model is entered
+  const modelValue = watch('model');
+
+  useEffect(() => {
+    // Auto-show model mapping if user enters a custom model (not default)
+    if (modelValue && modelValue !== DEFAULT_MODEL && modelValue.trim() !== '') {
+      setShowModelMapping(true);
+    }
+  }, [modelValue]);
+
+  // Reset state when dialog opens/closes
+  useEffect(() => {
+    if (!open) {
+      setShowModelMapping(false);
+    }
+  }, [open]);
 
   const onSubmit = async (data: FormData) => {
     try {
@@ -62,6 +92,9 @@ export function ProfileDialog({ open, onClose, profile }: ProfileDialogProps) {
             baseUrl: data.baseUrl,
             apiKey: data.apiKey,
             model: data.model,
+            opusModel: data.opusModel,
+            sonnetModel: data.sonnetModel,
+            haikuModel: data.haikuModel,
           },
         });
       } else {
@@ -78,7 +111,7 @@ export function ProfileDialog({ open, onClose, profile }: ProfileDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent>
+      <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>{profile ? 'Edit Profile' : 'Create API Profile'}</DialogTitle>
         </DialogHeader>
@@ -104,8 +137,72 @@ export function ProfileDialog({ open, onClose, profile }: ProfileDialogProps) {
           </div>
 
           <div>
-            <Label htmlFor="model">Model (optional)</Label>
-            <Input id="model" {...register('model')} placeholder="claude-sonnet-4-5-20250929" />
+            <Label htmlFor="model">Default Model (ANTHROPIC_MODEL)</Label>
+            <Input id="model" {...register('model')} placeholder={DEFAULT_MODEL} />
+            <p className="text-xs text-muted-foreground mt-1">
+              Leave blank to use: {DEFAULT_MODEL}
+            </p>
+          </div>
+
+          {/* Model Mapping Section */}
+          <div className="border rounded-md">
+            <button
+              type="button"
+              className="w-full flex items-center justify-between p-3 text-sm font-medium hover:bg-muted/50 transition-colors"
+              onClick={() => setShowModelMapping(!showModelMapping)}
+            >
+              <span>Model Mapping (Opus/Sonnet/Haiku)</span>
+              {showModelMapping ? (
+                <ChevronDown className="w-4 h-4" />
+              ) : (
+                <ChevronRight className="w-4 h-4" />
+              )}
+            </button>
+
+            {showModelMapping && (
+              <div className="p-3 pt-0 space-y-3 border-t">
+                <p className="text-xs text-muted-foreground">
+                  Configure different model IDs for each tier. Useful for API proxies that route
+                  different model types to different backends.
+                </p>
+
+                <div>
+                  <Label htmlFor="opusModel" className="text-xs">
+                    Opus Model (ANTHROPIC_DEFAULT_OPUS_MODEL)
+                  </Label>
+                  <Input
+                    id="opusModel"
+                    {...register('opusModel')}
+                    placeholder={modelValue || DEFAULT_MODEL}
+                    className="h-8 text-sm"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="sonnetModel" className="text-xs">
+                    Sonnet Model (ANTHROPIC_DEFAULT_SONNET_MODEL)
+                  </Label>
+                  <Input
+                    id="sonnetModel"
+                    {...register('sonnetModel')}
+                    placeholder={modelValue || DEFAULT_MODEL}
+                    className="h-8 text-sm"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="haikuModel" className="text-xs">
+                    Haiku Model (ANTHROPIC_DEFAULT_HAIKU_MODEL)
+                  </Label>
+                  <Input
+                    id="haikuModel"
+                    {...register('haikuModel')}
+                    placeholder={modelValue || DEFAULT_MODEL}
+                    className="h-8 text-sm"
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="flex justify-end gap-2 pt-2">
