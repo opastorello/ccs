@@ -1,19 +1,18 @@
 /**
  * CLIProxy Stats Card Component
  *
- * Displays CLIProxyAPI usage statistics including:
- * - Proxy status (running/stopped)
- * - Total requests
- * - Quota exceeded events
- * - Request retries
- * - Requests by provider
+ * Displays CLIProxyAPI usage statistics with:
+ * - Status indicator (running/offline)
+ * - Total requests with success rate ring
+ * - Total tokens usage
+ * - Model breakdown with usage bars
  */
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Activity, AlertTriangle, RefreshCw, Server, Zap } from 'lucide-react';
+import { Server, Zap, Cpu, Coins } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useClipproxyStats, useClipproxyStatus } from '@/hooks/use-cliproxy-stats';
 
@@ -92,39 +91,19 @@ export function ClipproxyStatsCard({ className }: ClipproxyStatsCardProps) {
     );
   }
 
-  // Stats available
-  const statItems = [
-    {
-      label: 'Requests',
-      value: stats?.totalRequests ?? 0,
-      icon: Activity,
-      color: 'text-blue-600',
-      bgColor: 'bg-blue-100 dark:bg-blue-900/20',
-    },
-    {
-      label: 'Quota',
-      value: stats?.quotaExceededCount ?? 0,
-      icon: AlertTriangle,
-      color: stats?.quotaExceededCount ? 'text-amber-600' : 'text-muted-foreground',
-      bgColor:
-        stats?.quotaExceededCount
-          ? 'bg-amber-100 dark:bg-amber-900/20'
-          : 'bg-muted',
-    },
-    {
-      label: 'Retries',
-      value: stats?.retryCount ?? 0,
-      icon: RefreshCw,
-      color: stats?.retryCount ? 'text-orange-600' : 'text-muted-foreground',
-      bgColor:
-        stats?.retryCount ? 'bg-orange-100 dark:bg-orange-900/20' : 'bg-muted',
-    },
-  ];
+  // Calculate stats
+  const totalRequests = stats?.totalRequests ?? 0;
+  const failedRequests = stats?.quotaExceededCount ?? 0;
+  const successRequests = totalRequests - failedRequests;
+  const successRate = totalRequests > 0 ? Math.round((successRequests / totalRequests) * 100) : 100;
+  const totalTokens = stats?.tokens?.total ?? 0;
 
-  // Provider breakdown
-  const providers = Object.entries(stats?.requestsByProvider ?? {}).sort(
-    (a, b) => b[1] - a[1]
-  );
+  // Get model breakdown sorted by usage
+  const models = Object.entries(stats?.requestsByModel ?? {})
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 4); // Top 4 models
+
+  const maxModelRequests = models.length > 0 ? models[0][1] : 1;
 
   return (
     <Card className={cn('flex flex-col h-full overflow-hidden', className)}>
@@ -146,48 +125,88 @@ export function ClipproxyStatsCard({ className }: ClipproxyStatsCardProps) {
       <CardContent className="p-0 flex-1 min-h-0">
         <ScrollArea className="h-full">
           <div className="p-3 space-y-3">
-            {/* Stats row */}
-            <div className="grid grid-cols-3 gap-2">
-              {statItems.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <div
-                    key={item.label}
-                    className="flex flex-col items-center p-2 rounded-lg bg-muted/50"
-                  >
-                    <div className={cn('p-1 rounded-md mb-1', item.bgColor)}>
-                      <Icon className={cn('h-3 w-3', item.color)} />
-                    </div>
-                    <span className="text-sm font-bold">{item.value}</span>
-                    <span className="text-[9px] text-muted-foreground">
-                      {item.label}
-                    </span>
+            {/* Key metrics row */}
+            <div className="grid grid-cols-2 gap-2">
+              {/* Requests with success ring */}
+              <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/30">
+                <div className="relative">
+                  <svg className="w-10 h-10 -rotate-90" viewBox="0 0 36 36">
+                    <circle
+                      cx="18"
+                      cy="18"
+                      r="14"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="3"
+                      className="text-muted/30"
+                    />
+                    <circle
+                      cx="18"
+                      cy="18"
+                      r="14"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="3"
+                      strokeDasharray={`${successRate * 0.88} 88`}
+                      strokeLinecap="round"
+                      className={successRate >= 90 ? 'text-green-500' : 'text-amber-500'}
+                    />
+                  </svg>
+                  <span className="absolute inset-0 flex items-center justify-center text-[8px] font-bold">
+                    {successRate}%
+                  </span>
+                </div>
+                <div className="min-w-0">
+                  <div className="text-lg font-bold leading-none">
+                    {formatNumber(totalRequests)}
                   </div>
-                );
-              })}
-            </div>
-
-            {/* Provider breakdown */}
-            {providers.length > 0 && (
-              <div className="space-y-1">
-                <p className="text-[10px] font-medium text-muted-foreground">
-                  By Provider
-                </p>
-                <div className="flex flex-wrap gap-1">
-                  {providers.map(([provider, count]) => (
-                    <Badge key={provider} variant="outline" className="text-[10px] h-5 px-1.5">
-                      {provider}: {count}
-                    </Badge>
-                  ))}
+                  <div className="text-[9px] text-muted-foreground mt-0.5">
+                    {failedRequests > 0 ? `${failedRequests} failed` : 'All success'}
+                  </div>
                 </div>
               </div>
-            )}
 
-            {/* Tokens */}
-            {stats?.tokens && stats.tokens.total > 0 && (
-              <div className="text-[10px] text-muted-foreground">
-                Tokens: {formatNumber(stats.tokens.input)} in /{' '}
-                {formatNumber(stats.tokens.output)} out
+              {/* Tokens */}
+              <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/30">
+                <div className="p-1.5 rounded-md bg-purple-100 dark:bg-purple-900/20">
+                  <Coins className="h-4 w-4 text-purple-600" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-lg font-bold leading-none">{formatNumber(totalTokens)}</div>
+                  <div className="text-[9px] text-muted-foreground mt-0.5">Total tokens</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Model breakdown */}
+            {models.length > 0 && (
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-1.5 text-[10px] font-medium text-muted-foreground">
+                  <Cpu className="h-3 w-3" />
+                  Models Used
+                </div>
+                <div className="space-y-1">
+                  {models.map(([model, count]) => {
+                    const percentage = Math.round((count / maxModelRequests) * 100);
+                    const displayName = formatModelName(model);
+                    return (
+                      <div key={model} className="group">
+                        <div className="flex items-center justify-between text-[10px] mb-0.5">
+                          <span className="truncate font-medium" title={model}>
+                            {displayName}
+                          </span>
+                          <span className="text-muted-foreground shrink-0 ml-2">{count}</span>
+                        </div>
+                        <div className="h-1 bg-muted/50 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-accent/70 rounded-full transition-all"
+                            style={{ width: `${percentage}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </div>
@@ -197,6 +216,7 @@ export function ClipproxyStatsCard({ className }: ClipproxyStatsCardProps) {
   );
 }
 
+/** Format large numbers with K/M suffix */
 function formatNumber(num: number): string {
   if (num >= 1000000) {
     return `${(num / 1000000).toFixed(1)}M`;
@@ -205,4 +225,28 @@ function formatNumber(num: number): string {
     return `${(num / 1000).toFixed(1)}K`;
   }
   return num.toLocaleString();
+}
+
+/** Format model names for display (remove prefixes, shorten) */
+function formatModelName(model: string): string {
+  // Remove common prefixes
+  let name = model
+    .replace(/^gemini-claude-/, '')
+    .replace(/^gemini-/, '')
+    .replace(/^claude-/, '')
+    .replace(/^anthropic\./, '')
+    .replace(/-thinking$/, ' Thinking');
+
+  // Capitalize first letter of each word
+  name = name
+    .split(/[-_]/)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+
+  // Shorten long names
+  if (name.length > 20) {
+    name = name.slice(0, 18) + '...';
+  }
+
+  return name;
 }

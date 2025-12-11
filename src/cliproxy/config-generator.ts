@@ -23,7 +23,7 @@ interface ProviderSettings {
 export const CLIPROXY_DEFAULT_PORT = 8317;
 
 /** Internal API key for CCS-managed requests */
-const CCS_INTERNAL_API_KEY = 'ccs-internal-managed';
+export const CCS_INTERNAL_API_KEY = 'ccs-internal-managed';
 
 /**
  * Config version - bump when config format changes to trigger regeneration
@@ -131,6 +131,12 @@ logging-to-file: false
 
 # Usage statistics for dashboard analytics
 usage-statistics-enabled: true
+
+# Management API for CCS dashboard (stats, control panel)
+remote-management:
+  allow-remote: false
+  secret-key: "${CCS_INTERNAL_API_KEY}"
+  disable-control-panel: true
 
 # Auto-retry on transient errors (403, 408, 500, 502, 503, 504)
 request-retry: 3

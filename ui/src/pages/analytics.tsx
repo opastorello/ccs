@@ -11,7 +11,6 @@ import { startOfMonth, subDays, formatDistanceToNow } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger, PopoverAnchor } from '@/components/ui/popover';
 import { DateRangeFilter } from '@/components/analytics/date-range-filter';
 import { UsageSummaryCards } from '@/components/analytics/usage-summary-cards';
@@ -20,7 +19,9 @@ import { ModelBreakdownChart } from '@/components/analytics/model-breakdown-char
 import { ModelDetailsContent } from '@/components/analytics/model-details-content';
 import { SessionStatsCard } from '@/components/analytics/session-stats-card';
 import { ClipproxyStatsCard } from '@/components/analytics/cliproxy-stats-card';
-import { TrendingUp, PieChart, RefreshCw, DollarSign, ChevronRight, Lightbulb, Zap, Gauge, Database, CheckCircle2 } from 'lucide-react';
+import { UsageInsightsCard } from '@/components/analytics/usage-insights-card';
+import { TrendingUp, PieChart, RefreshCw, DollarSign, ChevronRight, Lightbulb } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import {
   useUsageSummary,
   useUsageTrends,
@@ -31,8 +32,7 @@ import {
   useSessions,
   type ModelUsage,
 } from '@/hooks/use-usage';
-import { getModelColor, cn } from '@/lib/utils';
-import type { AnomalyType } from '@/hooks/use-usage';
+import { getModelColor } from '@/lib/utils';
 
 // Format token count to human-readable (K/M/B)
 function formatTokens(num: number): string {
@@ -41,42 +41,6 @@ function formatTokens(num: number): string {
   if (num >= 1_000) return `${(num / 1_000).toFixed(0)}K`;
   return num.toString();
 }
-
-// Anomaly type configuration for icons and colors
-const ANOMALY_CONFIG: Record<
-  AnomalyType,
-  {
-    icon: React.ComponentType<{ className?: string }>;
-    color: string;
-    bgColor: string;
-    label: string;
-  }
-> = {
-  high_input: {
-    icon: Zap,
-    color: 'text-yellow-600 dark:text-yellow-400',
-    bgColor: 'bg-yellow-100 dark:bg-yellow-900/20',
-    label: 'High Input',
-  },
-  high_io_ratio: {
-    icon: Gauge,
-    color: 'text-orange-600 dark:text-orange-400',
-    bgColor: 'bg-orange-100 dark:bg-orange-900/20',
-    label: 'High I/O Ratio',
-  },
-  cost_spike: {
-    icon: DollarSign,
-    color: 'text-red-600 dark:text-red-400',
-    bgColor: 'bg-red-100 dark:bg-red-900/20',
-    label: 'Cost Spike',
-  },
-  high_cache_read: {
-    icon: Database,
-    color: 'text-cyan-600 dark:text-cyan-400',
-    bgColor: 'bg-cyan-100 dark:bg-cyan-900/20',
-    label: 'Heavy Caching',
-  },
-};
 
 export function AnalyticsPage() {
   // Default to last 30 days
@@ -152,15 +116,11 @@ export function AnalyticsPage() {
               { label: 'All Time', range: { from: undefined, to: new Date() } },
             ]}
           />
-          {/* Usage Insights Dropdown */}
+
+          {/* Usage Insights Card (replaces popover) */}
           <Popover>
             <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-1.5 h-8"
-                title="Usage Insights"
-              >
+              <Button variant="outline" size="sm" className="gap-1.5 h-8" title="Usage Insights">
                 <Lightbulb
                   className={`w-3.5 h-3.5 ${
                     insights?.summary?.totalAnomalies ? 'text-amber-500' : 'text-green-500'
@@ -168,10 +128,7 @@ export function AnalyticsPage() {
                 />
                 <span className="text-xs">Insights</span>
                 {insights?.summary?.totalAnomalies ? (
-                  <Badge
-                    variant="destructive"
-                    className="h-4 px-1 text-[10px] font-bold ml-0.5"
-                  >
+                  <Badge variant="destructive" className="h-4 px-1 text-[10px] font-bold ml-0.5">
                     {insights.summary.totalAnomalies}
                   </Badge>
                 ) : (
@@ -184,59 +141,16 @@ export function AnalyticsPage() {
                 )}
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-80 p-0" align="end">
-              {isInsightsLoading ? (
-                <div className="p-4 flex items-center justify-center">
-                  <div className="animate-pulse flex flex-col items-center gap-2 opacity-50">
-                    <div className="h-8 w-8 bg-muted rounded-full" />
-                    <div className="h-4 w-32 bg-muted rounded" />
-                  </div>
-                </div>
-              ) : insights?.summary?.totalAnomalies ? (
-                <div className="max-h-[300px] overflow-y-auto">
-                  <div className="divide-y">
-                    {insights.anomalies?.map((anomaly, index) => {
-                      const config = ANOMALY_CONFIG[anomaly.type];
-                      const Icon = config.icon;
-                      return (
-                        <div key={index} className="p-3 hover:bg-muted/50 transition-colors">
-                          <div className="flex items-start gap-3">
-                            <div className={cn('p-2 rounded-lg shrink-0', config.bgColor)}>
-                              <Icon className={cn('h-4 w-4', config.color)} />
-                            </div>
-                            <div className="flex-1 min-w-0 space-y-1">
-                              <div className="flex items-center justify-between gap-2">
-                                <p className="font-medium text-sm">{config.label}</p>
-                                <span className="text-xs text-muted-foreground whitespace-nowrap">
-                                  {anomaly.date}
-                                </span>
-                              </div>
-                              <p className="text-xs text-muted-foreground line-clamp-2">
-                                {anomaly.message}
-                              </p>
-                              {anomaly.model && (
-                                <Badge variant="secondary" className="text-[10px] px-1 py-0 h-4 font-mono">
-                                  {anomaly.model}
-                                </Badge>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              ) : (
-                <div className="p-6 text-center text-muted-foreground">
-                  <div className="w-10 h-10 mx-auto rounded-full bg-green-100 dark:bg-green-900/20 flex items-center justify-center mb-2">
-                    <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-400" />
-                  </div>
-                  <p className="font-medium text-foreground text-sm">No anomalies detected</p>
-                  <p className="text-xs mt-1">Usage patterns look normal</p>
-                </div>
-              )}
+            <PopoverContent className="w-96 p-0 border-0 shadow-lg" align="end">
+              <UsageInsightsCard
+                anomalies={insights?.anomalies}
+                summary={insights?.summary}
+                isLoading={isInsightsLoading}
+                className="border-0 shadow-none max-h-[400px]"
+              />
             </PopoverContent>
           </Popover>
+
           {lastUpdatedText && (
             <span className="text-xs text-muted-foreground whitespace-nowrap">
               Updated {lastUpdatedText}

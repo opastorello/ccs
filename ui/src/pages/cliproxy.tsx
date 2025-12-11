@@ -18,6 +18,7 @@ import { Plus, Check, X, User, ChevronDown, Star, Trash2, Sparkles } from 'lucid
 import { CliproxyTable } from '@/components/cliproxy-table';
 import { QuickSetupWizard } from '@/components/quick-setup-wizard';
 import { AddAccountDialog } from '@/components/add-account-dialog';
+import { ClipproxyStatsOverview } from '@/components/cliproxy-stats-overview';
 import {
   useCliproxy,
   useCliproxyAuth,
@@ -185,6 +186,9 @@ export function CliproxyPage() {
           Quick Setup
         </Button>
       </div>
+
+      {/* Session Statistics */}
+      <ClipproxyStatsOverview />
 
       {/* Built-in Profiles with Account Management */}
       <div className="space-y-4">

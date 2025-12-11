@@ -5,7 +5,7 @@
  * Requires usage-statistics-enabled: true in config.yaml.
  */
 
-import { CLIPROXY_DEFAULT_PORT } from './config-generator';
+import { CCS_INTERNAL_API_KEY, CLIPROXY_DEFAULT_PORT } from './config-generator';
 
 /** Usage statistics from CLIProxyAPI */
 export interface ClipproxyStats {
@@ -29,17 +29,29 @@ export interface ClipproxyStats {
   collectedAt: string;
 }
 
-/** Stats API response from CLIProxyAPI */
-interface StatsApiResponse {
-  total_requests?: number;
-  tokens?: {
-    input?: number;
-    output?: number;
+/** Usage API response from CLIProxyAPI /v0/management/usage endpoint */
+interface UsageApiResponse {
+  failed_requests?: number;
+  usage?: {
+    total_requests?: number;
+    success_count?: number;
+    failure_count?: number;
+    total_tokens?: number;
+    apis?: Record<
+      string,
+      {
+        total_requests?: number;
+        total_tokens?: number;
+        models?: Record<
+          string,
+          {
+            total_requests?: number;
+            total_tokens?: number;
+          }
+        >;
+      }
+    >;
   };
-  requests_by_model?: Record<string, number>;
-  requests_by_provider?: Record<string, number>;
-  quota_exceeded_count?: number;
-  retry_count?: number;
 }
 
 /**
@@ -54,10 +66,11 @@ export async function fetchClipproxyStats(
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 3000); // 3s timeout
 
-    const response = await fetch(`http://127.0.0.1:${port}/v0/management/stats`, {
+    const response = await fetch(`http://127.0.0.1:${port}/v0/management/usage`, {
       signal: controller.signal,
       headers: {
         Accept: 'application/json',
+        Authorization: `Bearer ${CCS_INTERNAL_API_KEY}`,
       },
     });
 
@@ -67,20 +80,36 @@ export async function fetchClipproxyStats(
       return null;
     }
 
-    const data = (await response.json()) as StatsApiResponse;
+    const data = (await response.json()) as UsageApiResponse;
+    const usage = data.usage;
+
+    // Extract models and providers from the nested API structure
+    const requestsByModel: Record<string, number> = {};
+    const requestsByProvider: Record<string, number> = {};
+
+    if (usage?.apis) {
+      for (const [provider, providerData] of Object.entries(usage.apis)) {
+        requestsByProvider[provider] = providerData.total_requests ?? 0;
+        if (providerData.models) {
+          for (const [model, modelData] of Object.entries(providerData.models)) {
+            requestsByModel[model] = modelData.total_requests ?? 0;
+          }
+        }
+      }
+    }
 
     // Normalize the response to our interface
     return {
-      totalRequests: data.total_requests ?? 0,
+      totalRequests: usage?.total_requests ?? 0,
       tokens: {
-        input: data.tokens?.input ?? 0,
-        output: data.tokens?.output ?? 0,
-        total: (data.tokens?.input ?? 0) + (data.tokens?.output ?? 0),
+        input: 0, // API doesn't provide input/output breakdown
+        output: 0,
+        total: usage?.total_tokens ?? 0,
       },
-      requestsByModel: data.requests_by_model ?? {},
-      requestsByProvider: data.requests_by_provider ?? {},
-      quotaExceededCount: data.quota_exceeded_count ?? 0,
-      retryCount: data.retry_count ?? 0,
+      requestsByModel,
+      requestsByProvider,
+      quotaExceededCount: usage?.failure_count ?? data.failed_requests ?? 0,
+      retryCount: 0, // API doesn't track retries separately
       collectedAt: new Date().toISOString(),
     };
   } catch {
@@ -99,7 +128,8 @@ export async function isClipproxyRunning(port: number = CLIPROXY_DEFAULT_PORT): 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 1000); // 1s timeout
 
-    const response = await fetch(`http://127.0.0.1:${port}/health`, {
+    // Use root endpoint - CLIProxyAPI returns server info at /
+    const response = await fetch(`http://127.0.0.1:${port}/`, {
       signal: controller.signal,
     });
 
