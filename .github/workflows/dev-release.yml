@@ -134,15 +134,16 @@ jobs:
             NUM=${ISSUE#\#}
             echo "Tagging issue #$NUM as released-dev"
 
-            # Add comment
-            gh issue comment $NUM --body ":test_tube: This fix is available for testing in version \`$NEW_VERSION\`
+            # Add comment (using printf to handle newlines safely)
+            COMMENT=":test_tube: This fix is available for testing in version \\\`$NEW_VERSION\\\`
 
-Install with:
-\`\`\`bash
-npm install @kaitranntt/ccs@dev
-\`\`\`
+          Install with:
+          \\\`\\\`\\\`bash
+          npm install @kaitranntt/ccs@dev
+          \\\`\\\`\\\`
 
-Please test and confirm the fix works as expected." --repo ${{ github.repository }} || true
+          Please test and confirm the fix works as expected."
+            gh issue comment "$NUM" --repo "${{ github.repository }}" --body "$COMMENT" || true
 
             # Add released-dev label, remove pending-release if present
             gh issue edit $NUM \
