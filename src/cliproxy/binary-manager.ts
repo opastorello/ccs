@@ -39,6 +39,9 @@ import {
 /** Cache duration for version check (1 hour in milliseconds) */
 const VERSION_CACHE_DURATION_MS = 60 * 60 * 1000;
 
+/** Version pin file name - stores user's explicit version choice */
+const VERSION_PIN_FILE = '.version-pin';
+
 /** GitHub API URL for latest release */
 const GITHUB_API_LATEST_RELEASE =
   'https://api.github.com/repos/router-for-me/CLIProxyAPI/releases/latest';
@@ -887,9 +890,26 @@ export class BinaryManager {
 
 /**
  * Convenience function to ensure binary is available
+ * Respects version pin if set by user via 'ccs cliproxy --install <version>'
  * @returns Path to CLIProxyAPI executable
  */
 export async function ensureCLIProxyBinary(verbose = false): Promise<string> {
+  const pinnedVersion = getPinnedVersion();
+
+  if (pinnedVersion) {
+    // Version is pinned - use forceVersion to prevent auto-update
+    if (verbose) {
+      console.error(`[cliproxy] Using pinned version: ${pinnedVersion}`);
+    }
+    const manager = new BinaryManager({
+      version: pinnedVersion,
+      verbose,
+      forceVersion: true,
+    });
+    return manager.ensureBinary();
+  }
+
+  // No pin - allow auto-update to latest
   const manager = new BinaryManager({ verbose });
   return manager.ensureBinary();
 }
@@ -958,6 +978,66 @@ export async function fetchLatestCliproxyVersion(): Promise<string> {
   const manager = new BinaryManager();
   const result = await manager.checkForUpdates();
   return result.latestVersion;
+}
+
+/**
+ * Get path to version pin file
+ * @returns Absolute path to .version-pin file
+ */
+export function getVersionPinPath(): string {
+  return path.join(getBinDir(), VERSION_PIN_FILE);
+}
+
+/**
+ * Get pinned version if one exists
+ * @returns Pinned version string, or null if not pinned
+ */
+export function getPinnedVersion(): string | null {
+  const pinPath = getVersionPinPath();
+  if (!fs.existsSync(pinPath)) {
+    return null;
+  }
+  try {
+    return fs.readFileSync(pinPath, 'utf8').trim();
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Save pinned version to persist user's explicit choice
+ * @param version Version to pin (e.g., "6.5.50")
+ */
+export function savePinnedVersion(version: string): void {
+  const pinPath = getVersionPinPath();
+  try {
+    fs.mkdirSync(path.dirname(pinPath), { recursive: true });
+    fs.writeFileSync(pinPath, version, 'utf8');
+  } catch {
+    // Silent fail - not critical but log if verbose
+  }
+}
+
+/**
+ * Clear pinned version (unpin)
+ */
+export function clearPinnedVersion(): void {
+  const pinPath = getVersionPinPath();
+  if (fs.existsSync(pinPath)) {
+    try {
+      fs.unlinkSync(pinPath);
+    } catch {
+      // Silent fail
+    }
+  }
+}
+
+/**
+ * Check if a version is currently pinned
+ * @returns true if a version is pinned
+ */
+export function isVersionPinned(): boolean {
+  return getPinnedVersion() !== null;
 }
 
 export default BinaryManager;

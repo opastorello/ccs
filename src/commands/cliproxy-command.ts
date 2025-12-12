@@ -26,6 +26,10 @@ import {
   fetchLatestCliproxyVersion,
   isCLIProxyInstalled,
   getCLIProxyPath,
+  getPinnedVersion,
+  savePinnedVersion,
+  clearPinnedVersion,
+  isVersionPinned,
 } from '../cliproxy';
 import { getAllAuthStatus, getOAuthConfig, triggerOAuth } from '../cliproxy/auth-handler';
 import { getProviderAccounts } from '../cliproxy/account-manager';
@@ -803,8 +807,9 @@ async function showHelp(): Promise<void> {
   // Binary Commands
   console.log(subheader('Binary Commands:'));
   const binaryCmds: [string, string][] = [
-    ['--install <version>', 'Install a specific binary version'],
-    ['--latest', 'Install the latest binary version'],
+    ['--install <version>', 'Install and pin a specific version'],
+    ['--latest', 'Install the latest version (no pin)'],
+    ['--update', 'Unpin and update to latest version'],
   ];
   const maxBinaryLen = Math.max(...binaryCmds.map(([cmd]) => cmd.length));
   for (const [cmd, desc] of binaryCmds) {
@@ -897,6 +902,7 @@ async function showStatus(verbose: boolean): Promise<void> {
   const installed = isCLIProxyInstalled();
   const currentVersion = getInstalledCliproxyVersion();
   const binaryPath = getCLIProxyPath();
+  const pinnedVersion = getPinnedVersion();
 
   console.log('');
   console.log(color('CLIProxyAPI Status', 'primary'));
@@ -904,7 +910,10 @@ async function showStatus(verbose: boolean): Promise<void> {
 
   if (installed) {
     console.log(`  Installed:  ${color('Yes', 'success')}`);
-    console.log(`  Version:    ${color(`v${currentVersion}`, 'info')}`);
+    const versionLabel = pinnedVersion
+      ? `${color(`v${currentVersion}`, 'info')} ${color('(pinned)', 'warning')}`
+      : color(`v${currentVersion}`, 'info');
+    console.log(`  Version:    ${versionLabel}`);
     console.log(`  Binary:     ${dim(binaryPath)}`);
   } else {
     console.log(`  Installed:  ${color('No', 'error')}`);
@@ -919,11 +928,19 @@ async function showStatus(verbose: boolean): Promise<void> {
     const latestVersion = await fetchLatestCliproxyVersion();
 
     if (latestVersion !== currentVersion) {
-      console.log(
-        `  Latest:     ${color(`v${latestVersion}`, 'success')} ${dim('(update available)')}`
-      );
-      console.log('');
-      console.log(`  ${dim(`Run "ccs cliproxy --latest" to update`)}`);
+      if (pinnedVersion) {
+        console.log(
+          `  Latest:     ${color(`v${latestVersion}`, 'success')} ${dim('(pinned to v' + pinnedVersion + ')')}`
+        );
+        console.log('');
+        console.log(`  ${dim('Run "ccs cliproxy --update" to unpin and update')}`);
+      } else {
+        console.log(
+          `  Latest:     ${color(`v${latestVersion}`, 'success')} ${dim('(update available)')}`
+        );
+        console.log('');
+        console.log(`  ${dim('Run "ccs cliproxy --latest" to update')}`);
+      }
     } else {
       console.log(`  Latest:     ${color(`v${latestVersion}`, 'success')} ${dim('(up to date)')}`);
     }
@@ -940,7 +957,7 @@ async function showStatus(verbose: boolean): Promise<void> {
 }
 
 /**
- * Install a specific version
+ * Install a specific version (pins the version to prevent auto-update)
  */
 async function installVersion(version: string, verbose: boolean): Promise<void> {
   // Validate version format (basic semver check)
@@ -954,8 +971,18 @@ async function installVersion(version: string, verbose: boolean): Promise<void> 
 
   try {
     await installCliproxyVersion(version, verbose);
+
+    // Pin the version to prevent auto-update
+    savePinnedVersion(version);
+
     console.log('');
-    console.log(ok(`CLIProxyAPI v${version} installed successfully`));
+    console.log(ok(`CLIProxyAPI v${version} installed (pinned)`));
+    console.log('');
+    console.log(dim('This version will be used until you run:'));
+    console.log(
+      `  ${color('ccs cliproxy --update', 'command')}  ${dim('# Update to latest and unpin')}`
+    );
+    console.log('');
   } catch (error) {
     const err = error as Error;
     console.error('');
@@ -974,7 +1001,7 @@ async function installVersion(version: string, verbose: boolean): Promise<void> 
 }
 
 /**
- * Install latest version
+ * Install latest version (clears any version pin)
  */
 async function installLatest(verbose: boolean): Promise<void> {
   console.log(info('Fetching latest CLIProxyAPI version...'));
@@ -982,8 +1009,9 @@ async function installLatest(verbose: boolean): Promise<void> {
   try {
     const latestVersion = await fetchLatestCliproxyVersion();
     const currentVersion = getInstalledCliproxyVersion();
+    const wasPinned = isVersionPinned();
 
-    if (isCLIProxyInstalled() && latestVersion === currentVersion) {
+    if (isCLIProxyInstalled() && latestVersion === currentVersion && !wasPinned) {
       console.log(ok(`Already running latest version: v${latestVersion}`));
       return;
     }
@@ -992,11 +1020,20 @@ async function installLatest(verbose: boolean): Promise<void> {
     if (isCLIProxyInstalled()) {
       console.log(info(`Current version: v${currentVersion}`));
     }
+    if (wasPinned) {
+      console.log(info(`Removing version pin (was v${getPinnedVersion()})`));
+    }
     console.log('');
 
     await installCliproxyVersion(latestVersion, verbose);
+
+    // Clear any version pin so auto-update works again
+    clearPinnedVersion();
+
     console.log('');
     console.log(ok(`CLIProxyAPI updated to v${latestVersion}`));
+    console.log(dim('Auto-update is now enabled.'));
+    console.log('');
   } catch (error) {
     const err = error as Error;
     console.error(fail(`Failed to install latest version: ${err.message}`));
@@ -1053,6 +1090,12 @@ export async function handleCliproxyCommand(args: string[]): Promise<void> {
 
   // Handle --latest
   if (args.includes('--latest')) {
+    await installLatest(verbose);
+    return;
+  }
+
+  // Handle --update (unpin and update to latest)
+  if (args.includes('--update')) {
     await installLatest(verbose);
     return;
   }
