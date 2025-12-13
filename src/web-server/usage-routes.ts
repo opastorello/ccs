@@ -640,10 +640,11 @@ function validateOffset(offset?: string): number {
  * Filter data by date range
  */
 function filterByDateRange<T extends { date?: string; month?: string; lastActivity?: string }>(
-  data: T[],
+  data: T[] | undefined,
   since?: string,
   until?: string
 ): T[] {
+  if (!data || !Array.isArray(data)) return [];
   if (!since && !until) return data;
 
   return data.filter((item) => {
@@ -835,8 +836,8 @@ usageRoutes.get(
 
       const hourlyData = await getCachedHourlyData();
 
-      // Filter by date range
-      const filtered = hourlyData.filter((h) => {
+      // Filter by date range (guard against undefined)
+      const filtered = (hourlyData || []).filter((h) => {
         // Extract date from hour format "YYYY-MM-DD HH:00"
         const hourDate = h.hour.slice(0, 10).replace(/-/g, '');
         if (since && hourDate < since) return false;
