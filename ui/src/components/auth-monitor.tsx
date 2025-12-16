@@ -48,18 +48,18 @@ function cleanEmail(email: string): string {
   return email.replace(/@(gmail|yahoo|hotmail|outlook|icloud)\.com$/i, '');
 }
 
-// Vibrant colors for account segments
+// Vibrant colors for account segments - darker for light theme contrast
 const ACCOUNT_COLORS = [
-  '#277da1', // Cerulean
-  '#43aa8b', // Seaweed
-  '#f9c74f', // Tuscan Sun
-  '#f94144', // Strawberry
-  '#f3722c', // Pumpkin
-  '#90be6d', // Willow
-  '#577590', // Blue Slate
-  '#f8961e', // Carrot
-  '#4d908e', // Dark Cyan
-  '#a78bfa', // Purple
+  '#1e6091', // Deep Cerulean (was #277da1)
+  '#2d8a6e', // Deep Seaweed (was #43aa8b)
+  '#d4a012', // Dark Tuscan (was #f9c74f)
+  '#c92a2d', // Deep Strawberry (was #f94144)
+  '#c45a1a', // Deep Pumpkin (was #f3722c)
+  '#6b9c4d', // Dark Willow (was #90be6d)
+  '#3d5a73', // Deep Blue Slate (was #577590)
+  '#cc7614', // Dark Carrot (was #f8961e)
+  '#3a7371', // Deep Cyan (was #4d908e)
+  '#7c5fc4', // Deep Purple (was #a78bfa)
 ];
 
 /** Enhanced live pulse indicator with multi-ring animation */
@@ -94,15 +94,15 @@ function InlineStatsBadge({ success, failure }: { success: number; failure: numb
   return (
     <div className="flex items-center gap-2">
       <div className="flex items-center gap-0.5">
-        <CheckCircle2 className="w-3 h-3 text-emerald-500" />
-        <span className="text-[10px] font-mono font-medium text-emerald-500">
+        <CheckCircle2 className="w-3 h-3 text-emerald-700 dark:text-emerald-500" />
+        <span className="text-[10px] font-mono font-medium text-emerald-700 dark:text-emerald-500">
           {success.toLocaleString()}
         </span>
       </div>
       {failure > 0 && (
         <div className="flex items-center gap-0.5">
-          <XCircle className="w-3 h-3 text-red-500" />
-          <span className="text-[10px] font-mono font-medium text-red-500">
+          <XCircle className="w-3 h-3 text-red-700 dark:text-red-500" />
+          <span className="text-[10px] font-mono font-medium text-red-700 dark:text-red-500">
             {failure.toLocaleString()}
           </span>
         </div>
@@ -308,7 +308,7 @@ export function AuthMonitor() {
       </div>
 
       {/* Flow Visualization */}
-      <div className="relative min-h-[320px] overflow-hidden">
+      <div className="relative overflow-hidden">
         {selectedProviderData ? (
           // Account-level flow view
           <AccountFlowViz

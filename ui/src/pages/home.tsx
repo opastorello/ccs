@@ -19,10 +19,10 @@ type StatVariant = 'default' | 'success' | 'warning' | 'error' | 'accent';
 
 const variantStyles: Record<StatVariant, { iconBg: string; iconColor: string }> = {
   default: { iconBg: 'bg-muted', iconColor: 'text-muted-foreground' },
-  success: { iconBg: 'bg-green-500/10', iconColor: 'text-green-600' },
-  warning: { iconBg: 'bg-yellow-500/10', iconColor: 'text-yellow-500' },
-  error: { iconBg: 'bg-red-500/10', iconColor: 'text-red-500' },
-  accent: { iconBg: 'bg-accent/10', iconColor: 'text-accent' },
+  success: { iconBg: 'bg-green-600/15', iconColor: 'text-green-700 dark:text-green-500' },
+  warning: { iconBg: 'bg-amber-500/15', iconColor: 'text-amber-700 dark:text-amber-400' },
+  error: { iconBg: 'bg-red-600/15', iconColor: 'text-red-700 dark:text-red-500' },
+  accent: { iconBg: 'bg-accent/15', iconColor: 'text-accent' },
 };
 
 function InlineStat({

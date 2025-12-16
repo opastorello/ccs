@@ -252,8 +252,8 @@ export function AccountFlowViz({ providerData, onBack }: AccountFlowVizProps) {
 
     if (newPulsing.size > 0) {
       setPulsingAccounts(newPulsing);
-      // Clear pulse after animation
-      const timer = setTimeout(() => setPulsingAccounts(new Set()), 600);
+      // Clear pulse after animation completes (match CSS animation duration)
+      const timer = setTimeout(() => setPulsingAccounts(new Set()), 2000);
       return () => clearTimeout(timer);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -429,15 +429,29 @@ export function AccountFlowViz({ providerData, onBack }: AccountFlowVizProps) {
                   />
                   {/* Pulse layer - only shows when new activity detected */}
                   {isPulsing && (
-                    <path
-                      d={d}
-                      fill="none"
-                      stroke={account.color}
-                      strokeWidth={strokeWidth * 1.5}
-                      strokeLinecap="round"
-                      filter="url(#flow-glow)"
-                      className="animate-request-pulse"
-                    />
+                    <>
+                      {/* Glowing path pulse */}
+                      <path
+                        d={d}
+                        fill="none"
+                        stroke={account.color}
+                        strokeWidth={strokeWidth * 2}
+                        strokeLinecap="round"
+                        filter="url(#flow-glow)"
+                        className="animate-request-pulse"
+                      />
+                      {/* Traveling dot along path */}
+                      <circle
+                        r={6}
+                        fill={account.color}
+                        filter="url(#flow-glow)"
+                        style={{
+                          offsetPath: `path('${d}')`,
+                          offsetDistance: '0%',
+                          animation: 'travel-dot 1.5s cubic-bezier(0.4, 0, 0.2, 1) forwards',
+                        }}
+                      />
+                    </>
                   )}
                 </g>
               );
@@ -731,20 +745,20 @@ export function AccountFlowViz({ providerData, onBack }: AccountFlowVizProps) {
                 {/* Stats */}
                 <div className="bg-muted/30 dark:bg-zinc-900/50 rounded-lg p-3 border border-border">
                   <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground mb-1">
-                    <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+                    <CheckCircle2 className="w-3 h-3 text-emerald-700 dark:text-emerald-500" />
                     <span>SUCCESSFUL</span>
                   </div>
-                  <div className="text-xl font-mono text-emerald-500 tracking-tighter">
+                  <div className="text-xl font-mono text-emerald-700 dark:text-emerald-500 tracking-tighter">
                     {selectedAccount.successCount.toLocaleString()}
                   </div>
                 </div>
 
                 <div className="bg-muted/30 dark:bg-zinc-900/50 rounded-lg p-3 border border-border">
                   <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground mb-1">
-                    <XCircle className="w-3 h-3 text-red-500" />
+                    <XCircle className="w-3 h-3 text-red-700 dark:text-red-500" />
                     <span>FAILED</span>
                   </div>
-                  <div className="text-xl font-mono text-red-500 tracking-tighter">
+                  <div className="text-xl font-mono text-red-700 dark:text-red-500 tracking-tighter">
                     {selectedAccount.failureCount.toLocaleString()}
                   </div>
                 </div>

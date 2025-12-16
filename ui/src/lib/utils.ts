@@ -29,11 +29,11 @@ const PROVIDER_COLORS: Record<string, string> = {
   qwen: '#f9c74f', // Tuscan
 };
 
-// Status colors (from Analytics Cost breakdown)
+// Status colors (from Analytics Cost breakdown) - darker for light theme contrast
 export const STATUS_COLORS = {
-  success: '#43aa8b', // Seaweed
-  degraded: '#e09f3e', // Ochre
-  failed: '#9e2a2b', // Merlot
+  success: '#15803d', // Green-700 (was Seaweed #43aa8b)
+  degraded: '#b45309', // Amber-700 (was Ochre #e09f3e)
+  failed: '#b91c1c', // Red-700 (was Merlot #9e2a2b)
 } as const;
 
 export function getModelColor(model: string): string {
