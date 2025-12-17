@@ -681,7 +681,14 @@ export function AccountFlowViz({ providerData, onBack }: AccountFlowVizProps) {
             className="absolute inset-0 w-full h-full pointer-events-none z-0 overflow-visible"
           >
             <defs>
-              <filter id="flow-glow" x="-20%" y="-20%" width="140%" height="140%">
+              <filter
+                id="flow-glow"
+                x="-20%"
+                y="-20%"
+                width="140%"
+                height="140%"
+                filterUnits="userSpaceOnUse"
+              >
                 <feGaussianBlur stdDeviation="3" result="blur" />
                 <feComposite in="SourceGraphic" in2="blur" operator="over" />
               </filter>
@@ -761,7 +768,7 @@ export function AccountFlowViz({ providerData, onBack }: AccountFlowVizProps) {
                     onPointerUp={handlePointerUp}
                     onPointerCancel={handlePointerUp}
                     className={cn(
-                      'group/card relative rounded-lg p-3 pb-5 w-44 cursor-grab transition-shadow duration-200',
+                      'group/card relative rounded-lg p-3 pb-4 w-44 cursor-grab transition-shadow duration-200',
                       'bg-muted/30 dark:bg-zinc-900/60 backdrop-blur-sm',
                       'border border-border/50 dark:border-white/[0.08]',
                       'border-t-2 select-none touch-none',
@@ -825,7 +832,7 @@ export function AccountFlowViz({ providerData, onBack }: AccountFlowVizProps) {
                     onPointerUp={handlePointerUp}
                     onPointerCancel={handlePointerUp}
                     className={cn(
-                      'group/card relative rounded-lg p-3 pr-6 w-44 cursor-grab transition-shadow duration-200',
+                      'group/card relative rounded-lg p-3 pr-4 w-44 cursor-grab transition-shadow duration-200',
                       'bg-muted/30 dark:bg-zinc-900/60 backdrop-blur-sm',
                       'border border-border/50 dark:border-white/[0.08]',
                       'border-l-2 select-none touch-none',
@@ -1010,7 +1017,7 @@ export function AccountFlowViz({ providerData, onBack }: AccountFlowVizProps) {
                       onPointerUp={handlePointerUp}
                       onPointerCancel={handlePointerUp}
                       className={cn(
-                        'group/card relative rounded-lg p-3 pl-6 w-44 cursor-grab transition-shadow duration-200',
+                        'group/card relative rounded-lg p-3 pl-4 w-44 cursor-grab transition-shadow duration-200',
                         'bg-muted/30 dark:bg-zinc-900/60 backdrop-blur-sm',
                         'border border-border/50 dark:border-white/[0.08]',
                         'border-r-2 select-none touch-none',
@@ -1075,7 +1082,7 @@ export function AccountFlowViz({ providerData, onBack }: AccountFlowVizProps) {
                     onPointerUp={handlePointerUp}
                     onPointerCancel={handlePointerUp}
                     className={cn(
-                      'group/card relative rounded-lg p-3 w-44 cursor-grab transition-shadow duration-200',
+                      'group/card relative rounded-lg p-3 pt-4 w-44 cursor-grab transition-shadow duration-200',
                       'bg-muted/30 dark:bg-zinc-900/60 backdrop-blur-sm',
                       'border border-border/50 dark:border-white/[0.08]',
                       'border-b-2 select-none touch-none',
