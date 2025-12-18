@@ -30,6 +30,10 @@ export interface CopilotConfig {
   rate_limit: number | null;
   wait_on_limit: boolean;
   model: string;
+  // Model mapping for Claude tiers
+  opus_model?: string;
+  sonnet_model?: string;
+  haiku_model?: string;
 }
 
 export interface CopilotModel {
@@ -38,6 +42,15 @@ export interface CopilotModel {
   provider: 'openai' | 'anthropic';
   isDefault?: boolean;
   isCurrent?: boolean;
+}
+
+export interface CopilotRawSettings {
+  settings: {
+    env?: Record<string, string>;
+  };
+  mtime: number;
+  path: string;
+  exists: boolean;
 }
 
 // API functions
@@ -59,6 +72,12 @@ async function fetchCopilotModels(): Promise<{ models: CopilotModel[]; current: 
   return res.json();
 }
 
+async function fetchCopilotRawSettings(): Promise<CopilotRawSettings> {
+  const res = await fetch(`${API_BASE}/copilot/settings/raw`);
+  if (!res.ok) throw new Error('Failed to fetch copilot raw settings');
+  return res.json();
+}
+
 async function updateCopilotConfig(config: Partial<CopilotConfig>): Promise<{ success: boolean }> {
   const res = await fetch(`${API_BASE}/copilot/config`, {
     method: 'PUT',
@@ -66,6 +85,20 @@ async function updateCopilotConfig(config: Partial<CopilotConfig>): Promise<{ su
     body: JSON.stringify(config),
   });
   if (!res.ok) throw new Error('Failed to update copilot config');
+  return res.json();
+}
+
+async function saveCopilotRawSettings(data: {
+  settings: CopilotRawSettings['settings'];
+  expectedMtime?: number;
+}): Promise<{ success: boolean; mtime: number }> {
+  const res = await fetch(`${API_BASE}/copilot/settings/raw`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (res.status === 409) throw new Error('CONFLICT');
+  if (!res.ok) throw new Error('Failed to save copilot raw settings');
   return res.json();
 }
 
@@ -108,12 +141,27 @@ export function useCopilot() {
     queryFn: fetchCopilotModels,
   });
 
+  const rawSettingsQuery = useQuery({
+    queryKey: ['copilot-raw-settings'],
+    queryFn: fetchCopilotRawSettings,
+  });
+
   // Mutations
   const updateConfigMutation = useMutation({
     mutationFn: updateCopilotConfig,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['copilot-status'] });
       queryClient.invalidateQueries({ queryKey: ['copilot-config'] });
+      queryClient.invalidateQueries({ queryKey: ['copilot-raw-settings'] });
+    },
+  });
+
+  const saveRawSettingsMutation = useMutation({
+    mutationFn: saveCopilotRawSettings,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['copilot-status'] });
+      queryClient.invalidateQueries({ queryKey: ['copilot-config'] });
+      queryClient.invalidateQueries({ queryKey: ['copilot-raw-settings'] });
     },
   });
 
@@ -157,10 +205,19 @@ export function useCopilot() {
     currentModel: modelsQuery.data?.current,
     modelsLoading: modelsQuery.isLoading,
 
+    // Raw Settings
+    rawSettings: rawSettingsQuery.data,
+    rawSettingsLoading: rawSettingsQuery.isLoading,
+    refetchRawSettings: rawSettingsQuery.refetch,
+
     // Mutations
     updateConfig: updateConfigMutation.mutate,
     updateConfigAsync: updateConfigMutation.mutateAsync,
     isUpdating: updateConfigMutation.isPending,
+
+    saveRawSettings: saveRawSettingsMutation.mutate,
+    saveRawSettingsAsync: saveRawSettingsMutation.mutateAsync,
+    isSavingRawSettings: saveRawSettingsMutation.isPending,
 
     startAuth: startAuthMutation.mutate,
     isAuthenticating: startAuthMutation.isPending,
