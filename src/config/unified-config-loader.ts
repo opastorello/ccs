@@ -319,8 +319,10 @@ function generateYamlWithComments(config: UnifiedConfig): string {
     lines.push('# Copilot: GitHub Copilot API proxy (via copilot-api)');
     lines.push('# Uses your existing GitHub Copilot subscription with Claude Code.');
     lines.push('#');
-    lines.push('# WARNING: This uses a reverse-engineered API. Use responsibly.');
-    lines.push('# Excessive automated usage may trigger GitHub abuse detection.');
+    lines.push('# !! DISCLAIMER - USE AT YOUR OWN RISK !!');
+    lines.push('# This uses an UNOFFICIAL reverse-engineered API.');
+    lines.push('# Excessive usage may trigger GitHub account restrictions.');
+    lines.push('# CCS provides NO WARRANTY and accepts NO RESPONSIBILITY for consequences.');
     lines.push('#');
     lines.push('# Setup: npx copilot-api auth (authenticate with GitHub)');
     lines.push('# Usage: ccs copilot (switch to copilot profile)');

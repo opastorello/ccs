@@ -159,8 +159,10 @@ export type CopilotAccountType = 'individual' | 'business' | 'enterprise';
  * Enables GitHub Copilot subscription usage via copilot-api proxy.
  * Strictly opt-in - disabled by default.
  *
- * WARNING: This uses a reverse-engineered API. Excessive automated usage
- * may trigger GitHub's abuse-detection systems.
+ * !! DISCLAIMER - USE AT YOUR OWN RISK !!
+ * This uses an UNOFFICIAL reverse-engineered API.
+ * Excessive usage may trigger GitHub account restrictions.
+ * CCS provides NO WARRANTY and accepts NO RESPONSIBILITY for any consequences.
  */
 export interface CopilotConfig {
   /** Enable Copilot integration (default: false) - must be explicitly enabled */

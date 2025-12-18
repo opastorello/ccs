@@ -144,12 +144,19 @@ export function CopilotPage() {
             <LoadingSidebar />
           ) : (
             <div className="p-3 space-y-4">
-              {/* Warning Banner */}
-              <div className="flex items-start gap-2 rounded-md border border-yellow-500/20 bg-yellow-500/10 p-2.5">
-                <AlertTriangle className="h-4 w-4 text-yellow-500 shrink-0 mt-0.5" />
-                <p className="text-xs text-yellow-700 dark:text-yellow-300">
-                  Reverse-engineered API
-                </p>
+              {/* Warning Banner - Disclaimer */}
+              <div className="rounded-md border border-yellow-500/50 bg-yellow-500/15 p-3 space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-yellow-600 dark:text-yellow-400 shrink-0" />
+                  <span className="text-xs font-semibold text-yellow-800 dark:text-yellow-200">
+                    Unofficial API - Use at Your Own Risk
+                  </span>
+                </div>
+                <ul className="text-[11px] text-yellow-700 dark:text-yellow-300 space-y-0.5 pl-6 list-disc">
+                  <li>Reverse-engineered API - may break anytime</li>
+                  <li>Excessive use may trigger account restrictions</li>
+                  <li>No warranty, no responsibility from CCS</li>
+                </ul>
               </div>
 
               {/* Integration Status */}
