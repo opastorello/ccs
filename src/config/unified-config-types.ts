@@ -175,8 +175,12 @@ export interface CopilotConfig {
   rate_limit: number | null;
   /** Wait instead of error when rate limit is hit (default: true) */
   wait_on_limit: boolean;
-  /** Selected model (default: claude-opus-4-5-20250514) */
+  /** Default model ID (e.g., claude-opus-4-5-20250514) */
   model: string;
+  /** Model mapping for Claude tiers - maps opus/sonnet/haiku to specific models */
+  opus_model?: string;
+  sonnet_model?: string;
+  haiku_model?: string;
 }
 
 /**

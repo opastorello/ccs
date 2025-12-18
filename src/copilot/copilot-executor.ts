@@ -31,15 +31,23 @@ export async function getCopilotStatus(config: CopilotConfig): Promise<CopilotSt
 
 /**
  * Generate environment variables for Claude Code to use copilot-api.
+ * Uses model mapping for opus/sonnet/haiku tiers if configured.
  */
 export function generateCopilotEnv(config: CopilotConfig): Record<string, string> {
+  // Use mapped models if configured, otherwise fall back to default model
+  const opusModel = config.opus_model || config.model;
+  const sonnetModel = config.sonnet_model || config.model;
+  const haikuModel = config.haiku_model || config.model;
+
   return {
     ANTHROPIC_BASE_URL: `http://localhost:${config.port}`,
     ANTHROPIC_AUTH_TOKEN: 'dummy', // copilot-api handles auth internally
     ANTHROPIC_MODEL: config.model,
-    ANTHROPIC_DEFAULT_SONNET_MODEL: config.model,
-    ANTHROPIC_SMALL_FAST_MODEL: config.model,
-    ANTHROPIC_DEFAULT_HAIKU_MODEL: config.model,
+    // Model tier mapping - allows different models for opus/sonnet/haiku
+    ANTHROPIC_DEFAULT_OPUS_MODEL: opusModel,
+    ANTHROPIC_DEFAULT_SONNET_MODEL: sonnetModel,
+    ANTHROPIC_SMALL_FAST_MODEL: haikuModel,
+    ANTHROPIC_DEFAULT_HAIKU_MODEL: haikuModel,
     // Disable non-essential traffic to avoid rate limiting
     DISABLE_NON_ESSENTIAL_MODEL_CALLS: '1',
     CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1',
