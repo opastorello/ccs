@@ -17,12 +17,13 @@ const PID_FILE = path.join(getCopilotDir(), 'daemon.pid');
 
 /**
  * Check if copilot-api daemon is running on the specified port.
+ * Uses 127.0.0.1 instead of localhost for more reliable local connections.
  */
 export async function isDaemonRunning(port: number): Promise<boolean> {
   return new Promise((resolve) => {
     const req = http.request(
       {
-        hostname: 'localhost',
+        hostname: '127.0.0.1',
         port,
         path: '/usage',
         method: 'GET',

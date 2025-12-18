@@ -18,12 +18,11 @@ import { CopilotModel } from './types';
  * Multipliers: 0 = free tier, 0.25-0.33 = cheap, 1 = standard, 3-10 = premium
  */
 export const DEFAULT_COPILOT_MODELS: CopilotModel[] = [
-  // Anthropic Models
+  // Anthropic Models - All require paid Copilot subscription
   {
     id: 'claude-sonnet-4.5',
     name: 'Claude Sonnet 4.5',
     provider: 'anthropic',
-    isDefault: true,
     minPlan: 'pro',
     multiplier: 1,
   },
@@ -53,7 +52,7 @@ export const DEFAULT_COPILOT_MODELS: CopilotModel[] = [
     id: 'claude-haiku-4.5',
     name: 'Claude Haiku 4.5',
     provider: 'anthropic',
-    minPlan: 'free',
+    minPlan: 'pro', // Requires paid Copilot subscription
     multiplier: 0.33,
   },
 
@@ -93,7 +92,14 @@ export const DEFAULT_COPILOT_MODELS: CopilotModel[] = [
   },
   { id: 'gpt-5', name: 'GPT-5', provider: 'openai', minPlan: 'pro', multiplier: 1 },
   { id: 'gpt-5-mini', name: 'GPT-5 Mini', provider: 'openai', minPlan: 'free', multiplier: 0 },
-  { id: 'gpt-4.1', name: 'GPT-4.1', provider: 'openai', minPlan: 'free', multiplier: 0 },
+  {
+    id: 'gpt-4.1',
+    name: 'GPT-4.1',
+    provider: 'openai',
+    isDefault: true,
+    minPlan: 'free',
+    multiplier: 0,
+  },
 
   // Google Models
   {
@@ -150,7 +156,8 @@ export async function fetchModelsFromDaemon(port: number): Promise<CopilotModel[
   return new Promise((resolve) => {
     const req = http.request(
       {
-        hostname: 'localhost',
+        // Use 127.0.0.1 instead of localhost for more reliable local connections
+        hostname: '127.0.0.1',
         port,
         path: '/v1/models',
         method: 'GET',
@@ -171,7 +178,7 @@ export async function fetchModelsFromDaemon(port: number): Promise<CopilotModel[
                 id: m.id,
                 name: formatModelName(m.id),
                 provider: detectProvider(m.id),
-                isDefault: m.id === 'claude-sonnet-4.5',
+                isDefault: m.id === 'gpt-4.1', // Free tier default
               }));
               resolve(models.length > 0 ? models : DEFAULT_COPILOT_MODELS);
             } else {
@@ -206,9 +213,10 @@ export async function getAvailableModels(port: number): Promise<CopilotModel[]> 
 
 /**
  * Get the default model.
+ * Uses gpt-4.1 as it's available on free tier.
  */
 export function getDefaultModel(): string {
-  return 'claude-sonnet-4.5';
+  return 'gpt-4.1';
 }
 
 /**

@@ -1826,9 +1826,10 @@ apiRoutes.get('/copilot/settings/raw', (_req: Request, res: Response): void => {
     // If file doesn't exist, return default structure with all model mappings
     if (!fs.existsSync(settingsPath)) {
       // Create settings structure matching CLIProxy pattern - always include all model mappings
+      // Use 127.0.0.1 instead of localhost for more reliable local connections
       const defaultSettings = {
         env: {
-          ANTHROPIC_BASE_URL: `http://localhost:${copilotConfig.port}`,
+          ANTHROPIC_BASE_URL: `http://127.0.0.1:${copilotConfig.port}`,
           ANTHROPIC_AUTH_TOKEN: 'copilot-managed',
           ANTHROPIC_MODEL: defaultModel,
           ANTHROPIC_DEFAULT_OPUS_MODEL: copilotConfig.opus_model || defaultModel,

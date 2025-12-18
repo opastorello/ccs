@@ -39,6 +39,7 @@ const CodeEditor = lazy(() =>
 
 // Model presets for quick configuration
 // Grouped by tier: Free (available to all) and Paid (requires Pro+)
+// Note: ALL Claude models require paid Copilot subscription
 const FREE_PRESETS = [
   {
     name: 'GPT-4.1 (Free)',
@@ -57,12 +58,12 @@ const FREE_PRESETS = [
     haiku: 'gpt-5-mini',
   },
   {
-    name: 'Claude Haiku 4.5 (Free)',
-    description: 'Free tier - fast Anthropic model',
-    default: 'claude-haiku-4.5',
-    opus: 'claude-haiku-4.5',
-    sonnet: 'claude-haiku-4.5',
-    haiku: 'claude-haiku-4.5',
+    name: 'Raptor Mini (Free)',
+    description: 'Free tier - fine-tuned for coding',
+    default: 'raptor-mini',
+    opus: 'raptor-mini',
+    sonnet: 'raptor-mini',
+    haiku: 'raptor-mini',
   },
 ];
 

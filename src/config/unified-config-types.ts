@@ -253,6 +253,7 @@ export interface SecretsConfig {
 /**
  * Default Copilot configuration.
  * Strictly opt-in - disabled by default.
+ * Uses gpt-4.1 as default model (free tier compatible).
  */
 export const DEFAULT_COPILOT_CONFIG: CopilotConfig = {
   enabled: false,
@@ -261,7 +262,7 @@ export const DEFAULT_COPILOT_CONFIG: CopilotConfig = {
   account_type: 'individual',
   rate_limit: null,
   wait_on_limit: true,
-  model: 'claude-sonnet-4.5',
+  model: 'gpt-4.1', // Free tier compatible
 };
 
 /**

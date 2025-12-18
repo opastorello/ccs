@@ -40,8 +40,10 @@ export function generateCopilotEnv(config: CopilotConfig): Record<string, string
   const sonnetModel = config.sonnet_model || config.model;
   const haikuModel = config.haiku_model || config.model;
 
+  // Use 127.0.0.1 instead of localhost for more reliable local connections
+  // (bypasses DNS resolution and potential IPv6 issues)
   return {
-    ANTHROPIC_BASE_URL: `http://localhost:${config.port}`,
+    ANTHROPIC_BASE_URL: `http://127.0.0.1:${config.port}`,
     ANTHROPIC_AUTH_TOKEN: 'dummy', // copilot-api handles auth internally
     ANTHROPIC_MODEL: config.model,
     // Model tier mapping - allows different models for opus/sonnet/haiku
