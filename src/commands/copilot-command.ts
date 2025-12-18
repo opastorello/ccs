@@ -66,7 +66,12 @@ function handleHelp(): number {
   console.log('  disable   Disable copilot integration');
   console.log('  help      Show this help message');
   console.log('');
-  console.log('After setup, use: ccs copilot  (as profile name)');
+  console.log('Quick start:');
+  console.log('  1. ccs copilot auth     # Authenticate with GitHub');
+  console.log('  2. ccs copilot enable   # Enable integration');
+  console.log('  3. ccs copilot start    # Start daemon');
+  console.log('');
+  console.log('Or use the web UI: ccs config → Copilot tab');
   console.log('');
   return 0;
 }
