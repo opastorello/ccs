@@ -14,6 +14,7 @@ import {
   isUnifiedConfig,
   createEmptyUnifiedConfig,
   UNIFIED_CONFIG_VERSION,
+  DEFAULT_COPILOT_CONFIG,
 } from './unified-config-types';
 import { isUnifiedConfigEnabled } from './feature-flags';
 
@@ -159,6 +160,16 @@ function mergeWithDefaults(partial: Partial<UnifiedConfig>): UnifiedConfig {
       // Legacy fields (keep for backwards compatibility during read)
       gemini: partial.websearch?.gemini,
     },
+    // Copilot config - strictly opt-in, merge with defaults
+    copilot: {
+      enabled: partial.copilot?.enabled ?? DEFAULT_COPILOT_CONFIG.enabled,
+      auto_start: partial.copilot?.auto_start ?? DEFAULT_COPILOT_CONFIG.auto_start,
+      port: partial.copilot?.port ?? DEFAULT_COPILOT_CONFIG.port,
+      account_type: partial.copilot?.account_type ?? DEFAULT_COPILOT_CONFIG.account_type,
+      rate_limit: partial.copilot?.rate_limit ?? DEFAULT_COPILOT_CONFIG.rate_limit,
+      wait_on_limit: partial.copilot?.wait_on_limit ?? DEFAULT_COPILOT_CONFIG.wait_on_limit,
+      model: partial.copilot?.model ?? DEFAULT_COPILOT_CONFIG.model,
+    },
   };
 }
 
@@ -298,6 +309,27 @@ function generateYamlWithComments(config: UnifiedConfig): string {
       yaml
         .dump({ websearch: config.websearch }, { indent: 2, lineWidth: -1, quotingType: '"' })
         .trim()
+    );
+    lines.push('');
+  }
+
+  // Copilot section (GitHub Copilot proxy)
+  if (config.copilot) {
+    lines.push('# ----------------------------------------------------------------------------');
+    lines.push('# Copilot: GitHub Copilot API proxy (via copilot-api)');
+    lines.push('# Uses your existing GitHub Copilot subscription with Claude Code.');
+    lines.push('#');
+    lines.push('# WARNING: This uses a reverse-engineered API. Use responsibly.');
+    lines.push('# Excessive automated usage may trigger GitHub abuse detection.');
+    lines.push('#');
+    lines.push('# Setup: npx copilot-api auth (authenticate with GitHub)');
+    lines.push('# Usage: ccs copilot (switch to copilot profile)');
+    lines.push('#');
+    lines.push('# Models: claude-opus-4-5-20250514, claude-sonnet-4-20250514, gpt-4.1, o3');
+    lines.push('# Account types: individual, business, enterprise');
+    lines.push('# ----------------------------------------------------------------------------');
+    lines.push(
+      yaml.dump({ copilot: config.copilot }, { indent: 2, lineWidth: -1, quotingType: '"' }).trim()
     );
     lines.push('');
   }
