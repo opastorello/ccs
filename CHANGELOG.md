@@ -1,3 +1,9 @@
+## [6.7.0-dev.3](https://github.com/kaitranntt/ccs/compare/v6.7.0-dev.2...v6.7.0-dev.3) (2025-12-19)
+
+### Features
+
+* **recovery:** add lazy initialization for bun/pnpm users ([2d2cd3e](https://github.com/kaitranntt/ccs/commit/2d2cd3eca21a49af04ca0b1c1d549e62b6ff5cc9))
+
 ## [6.7.0-dev.2](https://github.com/kaitranntt/ccs/compare/v6.7.0-dev.1...v6.7.0-dev.2) (2025-12-19)
 
 ### Bug Fixes
