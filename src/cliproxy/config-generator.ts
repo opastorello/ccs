@@ -14,7 +14,7 @@ import { getCcsDir } from '../utils/config-manager';
 import { warn } from '../utils/ui';
 import { CLIProxyProvider, ProviderConfig, ProviderModelMapping } from './types';
 import { getModelMappingFromConfig, getEnvVarsFromConfig } from './base-config-loader';
-import { loadOrCreateUnifiedConfig } from '../config/unified-config-loader';
+import { loadOrCreateUnifiedConfig, getGlobalEnvConfig } from '../config/unified-config-loader';
 
 /** Settings file structure for user overrides */
 interface ProviderSettings {
@@ -29,6 +29,15 @@ export const CCS_INTERNAL_API_KEY = 'ccs-internal-managed';
 
 /** Simple secret key for Control Panel login (user-facing) */
 export const CCS_CONTROL_PANEL_SECRET = 'ccs';
+
+/**
+ * Get CLIProxy writable directory for logs and runtime files.
+ * This directory is set as WRITABLE_PATH env var when spawning CLIProxy.
+ * Logs will be stored in ~/.ccs/cliproxy/logs/
+ */
+export function getCliproxyWritablePath(): string {
+  return path.join(getCcsDir(), 'cliproxy');
+}
 
 /**
  * Config version - bump when config format changes to trigger regeneration
@@ -372,6 +381,18 @@ export function getClaudeEnvVars(
 }
 
 /**
+ * Get global env vars to inject into all third-party profiles.
+ * Returns empty object if disabled.
+ */
+function getGlobalEnvVars(): Record<string, string> {
+  const globalEnvConfig = getGlobalEnvConfig();
+  if (!globalEnvConfig.enabled) {
+    return {};
+  }
+  return globalEnvConfig.env;
+}
+
+/**
  * Get effective environment variables for provider
  *
  * Priority order:
@@ -379,7 +400,7 @@ export function getClaudeEnvVars(
  * 2. User settings file (~/.ccs/{provider}.settings.json) if exists
  * 3. Bundled defaults from PROVIDER_CONFIGS
  *
- * This allows users to customize model mappings without code changes.
+ * All results are merged with global_env vars (telemetry/reporting disables).
  * User takes full responsibility for custom settings.
  */
 export function getEffectiveEnvVars(
@@ -387,6 +408,9 @@ export function getEffectiveEnvVars(
   port: number = CLIPROXY_DEFAULT_PORT,
   customSettingsPath?: string
 ): NodeJS.ProcessEnv {
+  // Get global env vars (DISABLE_TELEMETRY, etc.)
+  const globalEnv = getGlobalEnvVars();
+
   // Priority 1: Custom settings path (for user-defined variants)
   if (customSettingsPath) {
     const expandedPath = customSettingsPath.replace(/^~/, require('os').homedir());
@@ -396,8 +420,8 @@ export function getEffectiveEnvVars(
         const settings: ProviderSettings = JSON.parse(content);
 
         if (settings.env && typeof settings.env === 'object') {
-          // Custom variant settings found - use them
-          return settings.env;
+          // Custom variant settings found - merge with global env
+          return { ...globalEnv, ...settings.env };
         }
       } catch {
         // Invalid JSON - fall through to provider defaults
@@ -418,9 +442,8 @@ export function getEffectiveEnvVars(
       const settings: ProviderSettings = JSON.parse(content);
 
       if (settings.env && typeof settings.env === 'object') {
-        // User override found - use their settings
-        // Note: User is responsible for correctness
-        return settings.env;
+        // User override found - merge with global env
+        return { ...globalEnv, ...settings.env };
       }
     } catch {
       // Invalid JSON or structure - fall through to defaults
@@ -428,8 +451,8 @@ export function getEffectiveEnvVars(
     }
   }
 
-  // No override or invalid - use bundled defaults
-  return getClaudeEnvVars(provider, port);
+  // No override or invalid - use bundled defaults merged with global env
+  return { ...globalEnv, ...getClaudeEnvVars(provider, port) };
 }
 
 /**
@@ -455,4 +478,50 @@ export function ensureProviderSettings(provider: CLIProxyProvider): void {
   fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + '\n', {
     mode: 0o600,
   });
+}
+
+/**
+ * Get environment variables for remote proxy mode.
+ * Uses the remote proxy's provider endpoint as the base URL.
+ *
+ * @param provider CLIProxy provider (gemini, codex, agy, qwen, iflow)
+ * @param remoteConfig Remote proxy connection details
+ * @returns Environment variables for Claude CLI
+ */
+export function getRemoteEnvVars(
+  provider: CLIProxyProvider,
+  remoteConfig: { host: string; port: number; protocol: 'http' | 'https'; authToken?: string }
+): Record<string, string> {
+  const baseUrl = `${remoteConfig.protocol}://${remoteConfig.host}:${remoteConfig.port}/api/provider/${provider}`;
+  const models = getModelMapping(provider);
+
+  // Get global env vars (DISABLE_TELEMETRY, etc.)
+  const globalEnv = getGlobalEnvVars();
+
+  // Get additional env vars from base config (ANTHROPIC_MAX_TOKENS, etc.)
+  const baseEnvVars = getEnvVarsFromConfig(provider);
+
+  // Filter out core env vars from base config to avoid conflicts
+  const {
+    ANTHROPIC_BASE_URL: _baseUrl,
+    ANTHROPIC_AUTH_TOKEN: _authToken,
+    ANTHROPIC_MODEL: _model,
+    ANTHROPIC_DEFAULT_OPUS_MODEL: _opusModel,
+    ANTHROPIC_DEFAULT_SONNET_MODEL: _sonnetModel,
+    ANTHROPIC_DEFAULT_HAIKU_MODEL: _haikuModel,
+    ...additionalEnvVars
+  } = baseEnvVars;
+
+  const env: Record<string, string> = {
+    ...globalEnv,
+    ...additionalEnvVars,
+    ANTHROPIC_BASE_URL: baseUrl,
+    ANTHROPIC_AUTH_TOKEN: remoteConfig.authToken || CCS_INTERNAL_API_KEY,
+    ANTHROPIC_MODEL: models.claudeModel,
+    ANTHROPIC_DEFAULT_OPUS_MODEL: models.opusModel || models.claudeModel,
+    ANTHROPIC_DEFAULT_SONNET_MODEL: models.sonnetModel || models.claudeModel,
+    ANTHROPIC_DEFAULT_HAIKU_MODEL: models.haikuModel || models.claudeModel,
+  };
+
+  return env;
 }

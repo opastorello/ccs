@@ -2,7 +2,7 @@ import { spawn, ChildProcess } from 'child_process';
 import * as path from 'path';
 import * as fs from 'fs';
 import { detectClaudeCli } from './utils/claude-detector';
-import { getSettingsPath } from './utils/config-manager';
+import { getSettingsPath, loadSettings } from './utils/config-manager';
 import { ErrorManager } from './utils/error-manager';
 import { execClaudeWithCLIProxy, CLIProxyProvider } from './cliproxy';
 import {
@@ -11,6 +11,7 @@ import {
   displayWebSearchStatus,
   getWebSearchHookEnv,
 } from './utils/websearch-manager';
+import { getGlobalEnvConfig } from './config/unified-config-loader';
 
 // Import extracted command handlers
 import { handleVersionCommand } from './commands/version-command';
@@ -32,7 +33,7 @@ import {
   checkCachedUpdate,
   isCacheStale,
 } from './utils/update-checker';
-import { detectInstallationMethod } from './utils/package-manager-detector';
+// Note: npm is now the only supported installation method
 
 // ========== Profile Detection ==========
 
@@ -219,9 +220,8 @@ interface ProfileError extends Error {
 async function refreshUpdateCache(): Promise<void> {
   try {
     const currentVersion = getVersion();
-    const installMethod = detectInstallationMethod();
-    // Force=true to always fetch fresh data
-    await checkForUpdates(currentVersion, true, installMethod);
+    // npm is now the only supported installation method
+    await checkForUpdates(currentVersion, true, 'npm');
   } catch (_e) {
     // Silently fail - update check shouldn't crash main CLI
   }
@@ -495,7 +495,20 @@ async function main(): Promise<void> {
         // Use --settings flag (backward compatible)
         const expandedSettingsPath = getSettingsPath(profileInfo.name);
         const webSearchEnv = getWebSearchHookEnv();
+        // Get global env vars (DISABLE_TELEMETRY, etc.) for third-party profiles
+        const globalEnvConfig = getGlobalEnvConfig();
+        const globalEnv = globalEnvConfig.enabled ? globalEnvConfig.env : {};
+
+        // CRITICAL: Load settings and explicitly set ANTHROPIC_* env vars
+        // to prevent inheriting stale values from previous CLIProxy sessions.
+        // Environment variables take precedence over --settings file values,
+        // so we must explicitly set them here to ensure correct routing.
+        const settings = loadSettings(expandedSettingsPath);
+        const settingsEnv = settings.env || {};
+
         const envVars: NodeJS.ProcessEnv = {
+          ...globalEnv,
+          ...settingsEnv, // Explicitly inject all settings env vars
           ...webSearchEnv,
           CCS_PROFILE_TYPE: 'settings', // Signal to WebSearch hook this is a third-party provider
         };

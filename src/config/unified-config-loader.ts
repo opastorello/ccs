@@ -15,6 +15,9 @@ import {
   createEmptyUnifiedConfig,
   UNIFIED_CONFIG_VERSION,
   DEFAULT_COPILOT_CONFIG,
+  DEFAULT_GLOBAL_ENV,
+  DEFAULT_CLIPROXY_SERVER_CONFIG,
+  GlobalEnvConfig,
 } from './unified-config-types';
 import { isUnifiedConfigEnabled } from './feature-flags';
 
@@ -169,6 +172,40 @@ function mergeWithDefaults(partial: Partial<UnifiedConfig>): UnifiedConfig {
       rate_limit: partial.copilot?.rate_limit ?? DEFAULT_COPILOT_CONFIG.rate_limit,
       wait_on_limit: partial.copilot?.wait_on_limit ?? DEFAULT_COPILOT_CONFIG.wait_on_limit,
       model: partial.copilot?.model ?? DEFAULT_COPILOT_CONFIG.model,
+    },
+    // Global env - injected into all non-Claude subscription profiles
+    global_env: {
+      enabled: partial.global_env?.enabled ?? true,
+      env: partial.global_env?.env ?? { ...DEFAULT_GLOBAL_ENV },
+    },
+    // CLIProxy server config - remote/local CLIProxyAPI settings
+    cliproxy_server: {
+      remote: {
+        enabled:
+          partial.cliproxy_server?.remote?.enabled ?? DEFAULT_CLIPROXY_SERVER_CONFIG.remote.enabled,
+        host: partial.cliproxy_server?.remote?.host ?? DEFAULT_CLIPROXY_SERVER_CONFIG.remote.host,
+        port: partial.cliproxy_server?.remote?.port ?? DEFAULT_CLIPROXY_SERVER_CONFIG.remote.port,
+        protocol:
+          partial.cliproxy_server?.remote?.protocol ??
+          DEFAULT_CLIPROXY_SERVER_CONFIG.remote.protocol,
+        auth_token:
+          partial.cliproxy_server?.remote?.auth_token ??
+          DEFAULT_CLIPROXY_SERVER_CONFIG.remote.auth_token,
+      },
+      fallback: {
+        enabled:
+          partial.cliproxy_server?.fallback?.enabled ??
+          DEFAULT_CLIPROXY_SERVER_CONFIG.fallback.enabled,
+        auto_start:
+          partial.cliproxy_server?.fallback?.auto_start ??
+          DEFAULT_CLIPROXY_SERVER_CONFIG.fallback.auto_start,
+      },
+      local: {
+        port: partial.cliproxy_server?.local?.port ?? DEFAULT_CLIPROXY_SERVER_CONFIG.local.port,
+        auto_start:
+          partial.cliproxy_server?.local?.auto_start ??
+          DEFAULT_CLIPROXY_SERVER_CONFIG.local.auto_start,
+      },
     },
   };
 }
@@ -336,6 +373,28 @@ function generateYamlWithComments(config: UnifiedConfig): string {
     lines.push('');
   }
 
+  // Global env section
+  if (config.global_env) {
+    lines.push('# ----------------------------------------------------------------------------');
+    lines.push(
+      '# Global Environment Variables: Injected into all non-Claude subscription profiles'
+    );
+    lines.push('# These env vars disable telemetry/reporting for third-party providers.');
+    lines.push('# Configure via Dashboard (`ccs config`) > Global Env tab.');
+    lines.push('#');
+    lines.push('# Default variables:');
+    lines.push('#   DISABLE_BUG_COMMAND: Disables /bug command (not supported by proxy)');
+    lines.push('#   DISABLE_ERROR_REPORTING: Disables error reporting to Anthropic');
+    lines.push('#   DISABLE_TELEMETRY: Disables usage telemetry');
+    lines.push('# ----------------------------------------------------------------------------');
+    lines.push(
+      yaml
+        .dump({ global_env: config.global_env }, { indent: 2, lineWidth: -1, quotingType: '"' })
+        .trim()
+    );
+    lines.push('');
+  }
+
   return lines.join('\n');
 }
 
@@ -460,5 +519,17 @@ export function getWebSearchConfig(): {
     },
     // Legacy field for backwards compatibility
     gemini: config.websearch?.gemini,
+  };
+}
+
+/**
+ * Get global_env configuration.
+ * Returns defaults if not configured.
+ */
+export function getGlobalEnvConfig(): GlobalEnvConfig {
+  const config = loadOrCreateUnifiedConfig();
+  return {
+    enabled: config.global_env?.enabled ?? true,
+    env: config.global_env?.env ?? { ...DEFAULT_GLOBAL_ENV },
   };
 }

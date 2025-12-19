@@ -227,7 +227,7 @@ export function CliproxyPage() {
   return (
     <div className="h-[calc(100vh-100px)] flex">
       {/* Left Sidebar */}
-      <div className="w-64 border-r flex flex-col bg-muted/30">
+      <div className="w-80 border-r flex flex-col bg-muted/30">
         {/* Header */}
         <div className="p-4 border-b bg-background">
           <div className="flex items-center justify-between mb-1">
