@@ -1,3 +1,9 @@
+## [6.7.0-dev.1](https://github.com/kaitranntt/ccs/compare/v6.6.2-dev.3...v6.7.0-dev.1) (2025-12-19)
+
+### Features
+
+* **env:** add debug logging for global env injection ([68eab56](https://github.com/kaitranntt/ccs/commit/68eab562ce404ac1933c76520e5597327348bff2))
+
 ## [6.6.2-dev.3](https://github.com/kaitranntt/ccs/compare/v6.6.2-dev.2...v6.6.2-dev.3) (2025-12-19)
 
 ### Bug Fixes
