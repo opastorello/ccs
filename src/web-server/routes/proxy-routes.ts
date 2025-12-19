@@ -1,69 +1,72 @@
 /**
- * Proxy Routes - API endpoints for proxy configuration
+ * CLIProxy Server Routes - API endpoints for proxy configuration
  *
  * Provides REST endpoints for managing CLIProxyAPI connection settings:
- * - GET /api/proxy - Get proxy configuration
- * - PUT /api/proxy - Update proxy configuration
- * - POST /api/proxy/test - Test remote connection
+ * - GET /api/cliproxy-server - Get proxy configuration
+ * - PUT /api/cliproxy-server - Update proxy configuration
+ * - POST /api/cliproxy-server/test - Test remote connection
  */
 
 import { Router, Request, Response } from 'express';
 import { loadOrCreateUnifiedConfig, saveUnifiedConfig } from '../../config/unified-config-loader';
 import { testConnection } from '../../cliproxy/remote-proxy-client';
-import { DEFAULT_PROXY_CONFIG, ProxyConfig } from '../../config/unified-config-types';
+import {
+  DEFAULT_CLIPROXY_SERVER_CONFIG,
+  CliproxyServerConfig,
+} from '../../config/unified-config-types';
 
 const router = Router();
 
 /**
- * GET /api/proxy - Get proxy configuration
+ * GET /api/cliproxy-server - Get proxy configuration
  */
 router.get('/', async (_req: Request, res: Response) => {
   try {
     const config = await loadOrCreateUnifiedConfig();
-    res.json(config.proxy || DEFAULT_PROXY_CONFIG);
+    res.json(config.cliproxy_server || DEFAULT_CLIPROXY_SERVER_CONFIG);
   } catch (error) {
-    console.error('[proxy-routes] Failed to load proxy config:', error);
+    console.error('[cliproxy-server-routes] Failed to load proxy config:', error);
     res.status(500).json({ error: 'Failed to load proxy config' });
   }
 });
 
 /**
- * PUT /api/proxy - Update proxy configuration
+ * PUT /api/cliproxy-server - Update proxy configuration
  */
 router.put('/', async (req: Request, res: Response) => {
   try {
     const config = await loadOrCreateUnifiedConfig();
-    const updates = req.body as Partial<ProxyConfig>;
+    const updates = req.body as Partial<CliproxyServerConfig>;
 
     // Deep merge with defaults and current config
-    config.proxy = {
+    config.cliproxy_server = {
       remote: {
-        ...DEFAULT_PROXY_CONFIG.remote,
-        ...config.proxy?.remote,
+        ...DEFAULT_CLIPROXY_SERVER_CONFIG.remote,
+        ...config.cliproxy_server?.remote,
         ...updates.remote,
       },
       fallback: {
-        ...DEFAULT_PROXY_CONFIG.fallback,
-        ...config.proxy?.fallback,
+        ...DEFAULT_CLIPROXY_SERVER_CONFIG.fallback,
+        ...config.cliproxy_server?.fallback,
         ...updates.fallback,
       },
       local: {
-        ...DEFAULT_PROXY_CONFIG.local,
-        ...config.proxy?.local,
+        ...DEFAULT_CLIPROXY_SERVER_CONFIG.local,
+        ...config.cliproxy_server?.local,
         ...updates.local,
       },
     };
 
     await saveUnifiedConfig(config);
-    res.json(config.proxy);
+    res.json(config.cliproxy_server);
   } catch (error) {
-    console.error('[proxy-routes] Failed to save proxy config:', error);
+    console.error('[cliproxy-server-routes] Failed to save proxy config:', error);
     res.status(500).json({ error: 'Failed to save proxy config' });
   }
 });
 
 /**
- * POST /api/proxy/test - Test remote proxy connection
+ * POST /api/cliproxy-server/test - Test remote proxy connection
  */
 router.post('/test', async (req: Request, res: Response) => {
   try {
@@ -85,7 +88,7 @@ router.post('/test', async (req: Request, res: Response) => {
 
     res.json(status);
   } catch (error) {
-    console.error('[proxy-routes] Failed to test connection:', error);
+    console.error('[cliproxy-server-routes] Failed to test connection:', error);
     res.status(500).json({ error: 'Failed to test connection' });
   }
 });

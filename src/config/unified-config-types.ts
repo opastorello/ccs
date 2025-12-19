@@ -224,10 +224,10 @@ export interface ProxyLocalConfig {
 }
 
 /**
- * Proxy configuration section.
+ * CLIProxy server configuration section.
  * Controls whether CCS uses local or remote CLIProxyAPI instance.
  */
-export interface ProxyConfig {
+export interface CliproxyServerConfig {
   /** Remote proxy settings */
   remote: ProxyRemoteConfig;
   /** Fallback behavior when remote is unreachable */
@@ -311,8 +311,8 @@ export interface UnifiedConfig {
   global_env?: GlobalEnvConfig;
   /** Copilot API configuration (GitHub Copilot proxy) */
   copilot?: CopilotConfig;
-  /** Proxy configuration for remote/local CLIProxyAPI */
-  proxy?: ProxyConfig;
+  /** CLIProxy server configuration for remote/local mode */
+  cliproxy_server?: CliproxyServerConfig;
 }
 
 /**
@@ -343,10 +343,10 @@ export const DEFAULT_COPILOT_CONFIG: CopilotConfig = {
 };
 
 /**
- * Default proxy configuration.
+ * Default CLIProxy server configuration.
  * Local mode by default - remote must be explicitly enabled.
  */
-export const DEFAULT_PROXY_CONFIG: ProxyConfig = {
+export const DEFAULT_CLIPROXY_SERVER_CONFIG: CliproxyServerConfig = {
   remote: {
     enabled: false,
     host: '',
@@ -411,7 +411,7 @@ export function createEmptyUnifiedConfig(): UnifiedConfig {
       env: { ...DEFAULT_GLOBAL_ENV },
     },
     copilot: { ...DEFAULT_COPILOT_CONFIG },
-    proxy: { ...DEFAULT_PROXY_CONFIG },
+    cliproxy_server: { ...DEFAULT_CLIPROXY_SERVER_CONFIG },
   };
 }
 

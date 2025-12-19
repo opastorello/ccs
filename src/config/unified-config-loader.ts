@@ -16,7 +16,7 @@ import {
   UNIFIED_CONFIG_VERSION,
   DEFAULT_COPILOT_CONFIG,
   DEFAULT_GLOBAL_ENV,
-  DEFAULT_PROXY_CONFIG,
+  DEFAULT_CLIPROXY_SERVER_CONFIG,
   GlobalEnvConfig,
 } from './unified-config-types';
 import { isUnifiedConfigEnabled } from './feature-flags';
@@ -178,22 +178,33 @@ function mergeWithDefaults(partial: Partial<UnifiedConfig>): UnifiedConfig {
       enabled: partial.global_env?.enabled ?? true,
       env: partial.global_env?.env ?? { ...DEFAULT_GLOBAL_ENV },
     },
-    // Proxy config - remote/local CLIProxyAPI settings
-    proxy: {
+    // CLIProxy server config - remote/local CLIProxyAPI settings
+    cliproxy_server: {
       remote: {
-        enabled: partial.proxy?.remote?.enabled ?? DEFAULT_PROXY_CONFIG.remote.enabled,
-        host: partial.proxy?.remote?.host ?? DEFAULT_PROXY_CONFIG.remote.host,
-        port: partial.proxy?.remote?.port ?? DEFAULT_PROXY_CONFIG.remote.port,
-        protocol: partial.proxy?.remote?.protocol ?? DEFAULT_PROXY_CONFIG.remote.protocol,
-        auth_token: partial.proxy?.remote?.auth_token ?? DEFAULT_PROXY_CONFIG.remote.auth_token,
+        enabled:
+          partial.cliproxy_server?.remote?.enabled ?? DEFAULT_CLIPROXY_SERVER_CONFIG.remote.enabled,
+        host: partial.cliproxy_server?.remote?.host ?? DEFAULT_CLIPROXY_SERVER_CONFIG.remote.host,
+        port: partial.cliproxy_server?.remote?.port ?? DEFAULT_CLIPROXY_SERVER_CONFIG.remote.port,
+        protocol:
+          partial.cliproxy_server?.remote?.protocol ??
+          DEFAULT_CLIPROXY_SERVER_CONFIG.remote.protocol,
+        auth_token:
+          partial.cliproxy_server?.remote?.auth_token ??
+          DEFAULT_CLIPROXY_SERVER_CONFIG.remote.auth_token,
       },
       fallback: {
-        enabled: partial.proxy?.fallback?.enabled ?? DEFAULT_PROXY_CONFIG.fallback.enabled,
-        auto_start: partial.proxy?.fallback?.auto_start ?? DEFAULT_PROXY_CONFIG.fallback.auto_start,
+        enabled:
+          partial.cliproxy_server?.fallback?.enabled ??
+          DEFAULT_CLIPROXY_SERVER_CONFIG.fallback.enabled,
+        auto_start:
+          partial.cliproxy_server?.fallback?.auto_start ??
+          DEFAULT_CLIPROXY_SERVER_CONFIG.fallback.auto_start,
       },
       local: {
-        port: partial.proxy?.local?.port ?? DEFAULT_PROXY_CONFIG.local.port,
-        auto_start: partial.proxy?.local?.auto_start ?? DEFAULT_PROXY_CONFIG.local.auto_start,
+        port: partial.cliproxy_server?.local?.port ?? DEFAULT_CLIPROXY_SERVER_CONFIG.local.port,
+        auto_start:
+          partial.cliproxy_server?.local?.auto_start ??
+          DEFAULT_CLIPROXY_SERVER_CONFIG.local.auto_start,
       },
     },
   };

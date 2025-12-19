@@ -183,8 +183,8 @@ export interface ProxyLocalConfig {
   auto_start: boolean;
 }
 
-/** Proxy configuration */
-export interface ProxyConfig {
+/** CLIProxy server configuration */
+export interface CliproxyServerConfig {
   remote: ProxyRemoteConfig;
   fallback: ProxyFallbackConfig;
   local: ProxyLocalConfig;
@@ -389,13 +389,13 @@ export const api = {
         method: 'DELETE',
       }),
   },
-  /** Proxy configuration API */
-  proxy: {
-    /** Get proxy configuration */
-    get: () => request<ProxyConfig>('/proxy'),
-    /** Update proxy configuration */
-    update: (config: Partial<ProxyConfig>) =>
-      request<ProxyConfig>('/proxy', {
+  /** CLIProxy server configuration API */
+  cliproxyServer: {
+    /** Get cliproxy server configuration */
+    get: () => request<CliproxyServerConfig>('/cliproxy-server'),
+    /** Update cliproxy server configuration */
+    update: (config: Partial<CliproxyServerConfig>) =>
+      request<CliproxyServerConfig>('/cliproxy-server', {
         method: 'PUT',
         body: JSON.stringify(config),
       }),
@@ -407,7 +407,7 @@ export const api = {
       authToken?: string;
       allowSelfSigned?: boolean;
     }) =>
-      request<RemoteProxyStatus>('/proxy/test', {
+      request<RemoteProxyStatus>('/cliproxy-server/test', {
         method: 'POST',
         body: JSON.stringify(params),
       }),

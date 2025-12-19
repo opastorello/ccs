@@ -43,7 +43,7 @@ import {
 } from 'lucide-react';
 import { CodeEditor } from '@/components/code-editor';
 import { api } from '@/lib/api-client';
-import type { ProxyConfig, RemoteProxyStatus } from '@/lib/api-client';
+import type { CliproxyServerConfig, RemoteProxyStatus } from '@/lib/api-client';
 
 interface ProviderConfig {
   enabled?: boolean;
@@ -117,7 +117,7 @@ export function SettingsPage() {
   const [newEnvKey, setNewEnvKey] = useState('');
   const [newEnvValue, setNewEnvValue] = useState('');
   // Proxy state
-  const [proxyConfig, setProxyConfig] = useState<ProxyConfig | null>(null);
+  const [proxyConfig, setCliproxyServerConfig] = useState<CliproxyServerConfig | null>(null);
   const [proxyLoading, setProxyLoading] = useState(true);
   const [proxySaving, setProxySaving] = useState(false);
   const [proxyError, setProxyError] = useState<string | null>(null);
@@ -131,7 +131,7 @@ export function SettingsPage() {
     fetchStatus();
     fetchRawConfig();
     fetchGlobalEnvConfig();
-    fetchProxyConfig();
+    fetchCliproxyServerConfig();
   }, []);
 
   // Sync local model inputs when config changes
@@ -204,12 +204,12 @@ export function SettingsPage() {
     }
   };
 
-  const fetchProxyConfig = async () => {
+  const fetchCliproxyServerConfig = async () => {
     try {
       setProxyLoading(true);
       setProxyError(null);
-      const data = await api.proxy.get();
-      setProxyConfig(data);
+      const data = await api.cliproxyServer.get();
+      setCliproxyServerConfig(data);
     } catch (err) {
       setProxyError((err as Error).message);
     } finally {
@@ -426,7 +426,7 @@ export function SettingsPage() {
   };
 
   // Proxy functions
-  const saveProxyConfig = async (updates: Partial<ProxyConfig>) => {
+  const saveCliproxyServerConfig = async (updates: Partial<CliproxyServerConfig>) => {
     if (!proxyConfig) return;
 
     // Optimistic update
@@ -435,15 +435,15 @@ export function SettingsPage() {
       fallback: { ...proxyConfig.fallback, ...updates.fallback },
       local: { ...proxyConfig.local, ...updates.local },
     };
-    setProxyConfig(optimisticConfig);
+    setCliproxyServerConfig(optimisticConfig);
     setTestResult(null); // Clear previous test result on config change
 
     try {
       setProxySaving(true);
       setProxyError(null);
 
-      const data = await api.proxy.update(updates);
-      setProxyConfig(data);
+      const data = await api.cliproxyServer.update(updates);
+      setCliproxyServerConfig(data);
       setProxySuccess(true);
       setTimeout(() => setProxySuccess(false), 1500);
       // Silently refresh raw config
@@ -452,7 +452,7 @@ export function SettingsPage() {
         .then((text) => text && setRawConfig(text))
         .catch(() => {});
     } catch (err) {
-      setProxyConfig(proxyConfig);
+      setCliproxyServerConfig(proxyConfig);
       setProxyError((err as Error).message);
     } finally {
       setProxySaving(false);
@@ -473,7 +473,7 @@ export function SettingsPage() {
       setProxyError(null);
       setTestResult(null);
 
-      const result = await api.proxy.test({
+      const result = await api.cliproxyServer.test({
         host,
         port,
         protocol,
@@ -586,9 +586,9 @@ export function SettingsPage() {
                 success={proxySuccess}
                 testResult={testResult}
                 testing={testing}
-                saveProxyConfig={saveProxyConfig}
+                saveCliproxyServerConfig={saveCliproxyServerConfig}
                 handleTestConnection={handleTestConnection}
-                fetchProxyConfig={fetchProxyConfig}
+                fetchCliproxyServerConfig={fetchCliproxyServerConfig}
                 fetchRawConfig={fetchRawConfig}
               />
             )}
@@ -1284,16 +1284,16 @@ function GlobalEnvContent({
 
 // Proxy Tab Content Component
 interface ProxyContentProps {
-  config: ProxyConfig | null;
+  config: CliproxyServerConfig | null;
   loading: boolean;
   saving: boolean;
   error: string | null;
   success: boolean;
   testResult: RemoteProxyStatus | null;
   testing: boolean;
-  saveProxyConfig: (updates: Partial<ProxyConfig>) => void;
+  saveCliproxyServerConfig: (updates: Partial<CliproxyServerConfig>) => void;
   handleTestConnection: () => void;
-  fetchProxyConfig: () => void;
+  fetchCliproxyServerConfig: () => void;
   fetchRawConfig: () => void;
 }
 
@@ -1305,9 +1305,9 @@ function ProxyContent({
   success,
   testResult,
   testing,
-  saveProxyConfig,
+  saveCliproxyServerConfig,
   handleTestConnection,
-  fetchProxyConfig,
+  fetchCliproxyServerConfig,
   fetchRawConfig,
 }: ProxyContentProps) {
   // Memoized default config to avoid recreation
@@ -1359,7 +1359,7 @@ function ProxyContent({
   const saveHost = () => {
     const value = editedHost ?? displayHost;
     if (value !== config?.remote.host) {
-      saveProxyConfig({ remote: { ...remoteConfig, host: value } });
+      saveCliproxyServerConfig({ remote: { ...remoteConfig, host: value } });
     }
     setEditedHost(null);
   };
@@ -1367,7 +1367,7 @@ function ProxyContent({
   const savePort = () => {
     const port = parseInt(editedPort ?? displayPort, 10);
     if (!isNaN(port) && port !== config?.remote.port) {
-      saveProxyConfig({ remote: { ...remoteConfig, port } });
+      saveCliproxyServerConfig({ remote: { ...remoteConfig, port } });
     }
     setEditedPort(null);
   };
@@ -1375,7 +1375,7 @@ function ProxyContent({
   const saveAuthToken = () => {
     const value = editedAuthToken ?? displayAuthToken;
     if (value !== config?.remote.auth_token) {
-      saveProxyConfig({ remote: { ...remoteConfig, auth_token: value } });
+      saveCliproxyServerConfig({ remote: { ...remoteConfig, auth_token: value } });
     }
     setEditedAuthToken(null);
   };
@@ -1383,7 +1383,7 @@ function ProxyContent({
   const saveLocalPort = () => {
     const port = parseInt(editedLocalPort ?? displayLocalPort, 10);
     if (!isNaN(port) && port !== config?.local.port) {
-      saveProxyConfig({ local: { ...localConfig, port } });
+      saveCliproxyServerConfig({ local: { ...localConfig, port } });
     }
     setEditedLocalPort(null);
   };
@@ -1426,7 +1426,9 @@ function ProxyContent({
             <div className="grid grid-cols-2 gap-3">
               {/* Local Mode Card */}
               <button
-                onClick={() => saveProxyConfig({ remote: { ...remoteConfig, enabled: false } })}
+                onClick={() =>
+                  saveCliproxyServerConfig({ remote: { ...remoteConfig, enabled: false } })
+                }
                 disabled={saving}
                 className={`p-4 rounded-lg border-2 text-left transition-all ${
                   !isRemoteMode
@@ -1447,7 +1449,9 @@ function ProxyContent({
 
               {/* Remote Mode Card */}
               <button
-                onClick={() => saveProxyConfig({ remote: { ...remoteConfig, enabled: true } })}
+                onClick={() =>
+                  saveCliproxyServerConfig({ remote: { ...remoteConfig, enabled: true } })
+                }
                 disabled={saving}
                 className={`p-4 rounded-lg border-2 text-left transition-all ${
                   isRemoteMode
@@ -1508,7 +1512,7 @@ function ProxyContent({
                   <Select
                     value={config?.remote.protocol || 'http'}
                     onValueChange={(value: 'http' | 'https') =>
-                      saveProxyConfig({ remote: { ...remoteConfig, protocol: value } })
+                      saveCliproxyServerConfig({ remote: { ...remoteConfig, protocol: value } })
                     }
                     disabled={saving}
                   >
@@ -1605,7 +1609,7 @@ function ProxyContent({
                 <Switch
                   checked={config?.fallback.enabled ?? true}
                   onCheckedChange={(checked) =>
-                    saveProxyConfig({ fallback: { ...fallbackConfig, enabled: checked } })
+                    saveCliproxyServerConfig({ fallback: { ...fallbackConfig, enabled: checked } })
                   }
                   disabled={saving || !isRemoteMode}
                 />
@@ -1622,7 +1626,9 @@ function ProxyContent({
                 <Switch
                   checked={config?.fallback.auto_start ?? false}
                   onCheckedChange={(checked) =>
-                    saveProxyConfig({ fallback: { ...fallbackConfig, auto_start: checked } })
+                    saveCliproxyServerConfig({
+                      fallback: { ...fallbackConfig, auto_start: checked },
+                    })
                   }
                   disabled={saving || !isRemoteMode || !config?.fallback.enabled}
                 />
@@ -1659,7 +1665,7 @@ function ProxyContent({
                 <Switch
                   checked={config?.local.auto_start ?? true}
                   onCheckedChange={(checked) =>
-                    saveProxyConfig({ local: { ...localConfig, auto_start: checked } })
+                    saveCliproxyServerConfig({ local: { ...localConfig, auto_start: checked } })
                   }
                   disabled={saving}
                 />
@@ -1675,7 +1681,7 @@ function ProxyContent({
           variant="outline"
           size="sm"
           onClick={() => {
-            fetchProxyConfig();
+            fetchCliproxyServerConfig();
             fetchRawConfig();
           }}
           disabled={loading || saving}
