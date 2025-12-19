@@ -1,3 +1,9 @@
+## [6.6.2-dev.2](https://github.com/kaitranntt/ccs/compare/v6.6.2-dev.1...v6.6.2-dev.2) (2025-12-19)
+
+### Bug Fixes
+
+* **remote-proxy:** fix TypeError and make port optional with protocol defaults ([03aea4e](https://github.com/kaitranntt/ccs/commit/03aea4eac233caf00736ceec80b4cc841bce948a)), closes [#142](https://github.com/kaitranntt/ccs/issues/142)
+
 ## [6.6.2-dev.1](https://github.com/kaitranntt/ccs/compare/v6.6.1...v6.6.2-dev.1) (2025-12-19)
 
 ### Bug Fixes
