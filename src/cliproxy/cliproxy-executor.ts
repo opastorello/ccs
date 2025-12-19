@@ -530,6 +530,10 @@ export async function execClaudeWithCLIProxy(
   if (Object.keys(webSearchEnv).length > 0) {
     log(`Claude env: WebSearch config=${JSON.stringify(webSearchEnv)}`);
   }
+  // Log global env vars for visibility
+  if (envVars.DISABLE_TELEMETRY || envVars.DISABLE_ERROR_REPORTING || envVars.DISABLE_BUG_COMMAND) {
+    log(`Claude env: Global env applied (telemetry/reporting disabled)`);
+  }
 
   // Filter out CCS-specific flags before passing to Claude CLI
   // Note: Proxy flags (--proxy-host, etc.) already stripped by resolveProxyConfig()
