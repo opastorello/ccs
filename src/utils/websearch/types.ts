@@ -6,32 +6,25 @@
  * @module utils/websearch/types
  */
 
+import type { ComponentStatus } from '../../types/utils';
+
 /**
  * Gemini CLI installation status
+ * @deprecated Use ComponentStatus directly
  */
-export interface GeminiCliStatus {
-  installed: boolean;
-  path: string | null;
-  version: string | null;
-}
+export type GeminiCliStatus = ComponentStatus;
 
 /**
  * Grok CLI installation status
+ * @deprecated Use ComponentStatus directly
  */
-export interface GrokCliStatus {
-  installed: boolean;
-  path: string | null;
-  version: string | null;
-}
+export type GrokCliStatus = ComponentStatus;
 
 /**
  * OpenCode CLI installation status
+ * @deprecated Use ComponentStatus directly
  */
-export interface OpenCodeCliStatus {
-  installed: boolean;
-  path: string | null;
-  version: string | null;
-}
+export type OpenCodeCliStatus = ComponentStatus;
 
 /**
  * WebSearch availability status for third-party profiles

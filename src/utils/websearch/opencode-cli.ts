@@ -28,8 +28,8 @@ export function getOpenCodeCliStatus(): OpenCodeCliStatus {
 
   const result: OpenCodeCliStatus = {
     installed: false,
-    path: null,
-    version: null,
+    path: undefined,
+    version: undefined,
   };
 
   try {

@@ -28,8 +28,8 @@ export function getGrokCliStatus(): GrokCliStatus {
 
   const result: GrokCliStatus = {
     installed: false,
-    path: null,
-    version: null,
+    path: undefined,
+    version: undefined,
   };
 
   try {

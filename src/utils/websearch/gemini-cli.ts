@@ -31,8 +31,8 @@ export function getGeminiCliStatus(): GeminiCliStatus {
 
   const result: GeminiCliStatus = {
     installed: false,
-    path: null,
-    version: null,
+    path: undefined,
+    version: undefined,
   };
 
   try {
