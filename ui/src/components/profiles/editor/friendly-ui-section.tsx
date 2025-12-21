@@ -13,7 +13,9 @@ import { OpenRouterModelPicker } from '@/components/profiles/openrouter-model-pi
 import { ModelTierMapping, type TierMapping } from '@/components/profiles/model-tier-mapping';
 import { Label } from '@/components/ui/label';
 import { MaskedInput } from '@/components/ui/masked-input';
-import { ChevronRight, Settings2 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { ChevronRight, Settings2, Plus } from 'lucide-react';
 import { isOpenRouterProfile, extractTierMapping, applyTierMapping } from './utils';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -98,19 +100,19 @@ export function FriendlyUISection({
   // State for collapsible sections
   const [showAllEnvVars, setShowAllEnvVars] = useState(false);
 
-  // For OpenRouter: filter out model-related env vars from the main display
-  // These are managed by the model picker and tier mapping
+  // For OpenRouter: keys managed by dedicated UI sections
   const openRouterManagedKeys = new Set([
     'ANTHROPIC_MODEL',
     'ANTHROPIC_DEFAULT_OPUS_MODEL',
     'ANTHROPIC_DEFAULT_SONNET_MODEL',
     'ANTHROPIC_DEFAULT_HAIKU_MODEL',
+    'ANTHROPIC_AUTH_TOKEN', // Managed by API Key section
   ]);
 
-  // Count of hidden env vars for OpenRouter profiles
-  const hiddenEnvVarCount = isOpenRouter
-    ? Object.keys(currentEnv).filter((k) => openRouterManagedKeys.has(k)).length
-    : 0;
+  // Get non-managed env vars for display in "Additional Variables"
+  const unmanagedEnvVars = Object.entries(currentEnv).filter(
+    ([key]) => !openRouterManagedKeys.has(key)
+  );
 
   return (
     <div className="h-full w-full min-w-0 flex flex-col">
@@ -133,97 +135,108 @@ export function FriendlyUISection({
           >
             {/* OpenRouter Streamlined View */}
             {isOpenRouter ? (
-              <div className="flex-1 overflow-hidden">
-                <div className="h-full overflow-y-auto overflow-x-hidden p-4 space-y-6">
-                  {/* Model Selection - Primary Focus */}
-                  <div className="space-y-3">
-                    <Label className="text-sm font-medium">Model Selection</Label>
-                    <OpenRouterModelPicker
-                      value={currentEnv.ANTHROPIC_MODEL}
-                      onChange={handleModelChange}
-                      placeholder="Search OpenRouter models..."
-                    />
-                  </div>
-
-                  {/* Model Tier Mapping - Collapsible */}
-                  <ModelTierMapping
-                    selectedModel={currentEnv.ANTHROPIC_MODEL}
-                    value={tierMapping}
-                    onChange={handleTierMappingChange}
-                  />
-
-                  {/* API Key - Simplified */}
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">API Key</Label>
-                    <MaskedInput
-                      value={currentEnv.ANTHROPIC_AUTH_TOKEN || ''}
-                      onChange={(e) => onEnvValueChange('ANTHROPIC_AUTH_TOKEN', e.target.value)}
-                      placeholder="sk-or-v1-..."
-                      className="font-mono text-sm"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Get your API key from{' '}
-                      <a
-                        href="https://openrouter.ai/keys"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-primary hover:underline"
-                      >
-                        openrouter.ai/keys
-                      </a>
-                    </p>
-                  </div>
-
-                  {/* Advanced: All Environment Variables */}
-                  <Collapsible open={showAllEnvVars} onOpenChange={setShowAllEnvVars}>
-                    <CollapsibleTrigger className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors group">
-                      <ChevronRight
-                        className={cn(
-                          'h-4 w-4 transition-transform',
-                          showAllEnvVars && 'rotate-90'
-                        )}
+              <>
+                <div className="flex-1 overflow-hidden">
+                  <div className="h-full overflow-y-auto overflow-x-hidden p-4 space-y-6">
+                    {/* Model Selection - Primary Focus */}
+                    <div className="space-y-3">
+                      <Label className="text-sm font-medium">Model Selection</Label>
+                      <OpenRouterModelPicker
+                        value={currentEnv.ANTHROPIC_MODEL}
+                        onChange={handleModelChange}
+                        placeholder="Search OpenRouter models..."
                       />
-                      <Settings2 className="h-4 w-4" />
-                      <span>All Environment Variables</span>
-                      <span className="text-xs font-normal opacity-70">
-                        ({Object.keys(currentEnv).length} vars
-                        {hiddenEnvVarCount > 0 && `, ${hiddenEnvVarCount} managed by picker`})
-                      </span>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent className="pt-4">
-                      <div className="space-y-3 border rounded-lg p-3 bg-muted/30">
-                        {Object.entries(currentEnv).map(([key, value]) => (
-                          <div key={key} className="space-y-1">
-                            <Label className="text-xs text-muted-foreground flex items-center gap-2">
-                              {key}
-                              {openRouterManagedKeys.has(key) && (
-                                <span className="text-[10px] px-1.5 py-0.5 bg-primary/10 text-primary rounded">
-                                  managed
-                                </span>
-                              )}
-                            </Label>
-                            {key === 'ANTHROPIC_AUTH_TOKEN' ? (
-                              <MaskedInput
-                                value={value}
-                                onChange={(e) => onEnvValueChange(key, e.target.value)}
-                                className="font-mono text-xs h-8"
-                              />
-                            ) : (
-                              <input
-                                type="text"
-                                value={value}
-                                onChange={(e) => onEnvValueChange(key, e.target.value)}
-                                className="w-full font-mono text-xs h-8 px-2 rounded border bg-background"
-                                readOnly={openRouterManagedKeys.has(key)}
-                              />
+                    </div>
+
+                    {/* Model Tier Mapping - Collapsible */}
+                    <ModelTierMapping
+                      selectedModel={currentEnv.ANTHROPIC_MODEL}
+                      value={tierMapping}
+                      onChange={handleTierMappingChange}
+                    />
+
+                    {/* API Key */}
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">API Key</Label>
+                      <MaskedInput
+                        value={currentEnv.ANTHROPIC_AUTH_TOKEN || ''}
+                        onChange={(e) => onEnvValueChange('ANTHROPIC_AUTH_TOKEN', e.target.value)}
+                        placeholder="sk-or-v1-..."
+                        className="font-mono text-sm"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Get your API key from{' '}
+                        <a
+                          href="https://openrouter.ai/keys"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary hover:underline"
+                        >
+                          openrouter.ai/keys
+                        </a>
+                      </p>
+                    </div>
+
+                    {/* Additional Environment Variables (non-managed) */}
+                    {unmanagedEnvVars.length > 0 && (
+                      <Collapsible open={showAllEnvVars} onOpenChange={setShowAllEnvVars}>
+                        <CollapsibleTrigger className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors group">
+                          <ChevronRight
+                            className={cn(
+                              'h-4 w-4 transition-transform',
+                              showAllEnvVars && 'rotate-90'
                             )}
+                          />
+                          <Settings2 className="h-4 w-4" />
+                          <span>Additional Variables</span>
+                          <span className="text-xs font-normal opacity-70">
+                            ({unmanagedEnvVars.length})
+                          </span>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent className="pt-4">
+                          <div className="space-y-3 border rounded-lg p-3 bg-muted/30">
+                            {unmanagedEnvVars.map(([key, value]) => (
+                              <div key={key} className="space-y-1">
+                                <Label className="text-xs text-muted-foreground">{key}</Label>
+                                <Input
+                                  value={value}
+                                  onChange={(e) => onEnvValueChange(key, e.target.value)}
+                                  className="font-mono text-xs h-8"
+                                />
+                              </div>
+                            ))}
                           </div>
-                        ))}
-                      </div>
-                    </CollapsibleContent>
-                  </Collapsible>
+                        </CollapsibleContent>
+                      </Collapsible>
+                    )}
+                  </div>
                 </div>
-              </div>
+
+                {/* Fixed Add Variable Input at Bottom */}
+                <div className="p-4 border-t bg-background shrink-0">
+                  <Label className="text-xs font-medium text-muted-foreground">
+                    Add Environment Variable
+                  </Label>
+                  <div className="flex gap-2 mt-2">
+                    <Input
+                      placeholder="VARIABLE_NAME"
+                      value={newEnvKey}
+                      onChange={(e) => onNewEnvKeyChange(e.target.value.toUpperCase())}
+                      className="font-mono text-sm h-8"
+                      onKeyDown={(e) => e.key === 'Enter' && onAddEnvVar()}
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8"
+                      onClick={onAddEnvVar}
+                      disabled={!newEnvKey.trim()}
+                    >
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              </>
             ) : (
               /* Standard Env Editor for non-OpenRouter profiles */
               <EnvEditorSection
