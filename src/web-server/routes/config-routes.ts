@@ -107,15 +107,19 @@ router.post('/migrate', async (req: Request, res: Response): Promise<void> => {
  * POST /api/config/rollback - Rollback migration to JSON format
  */
 router.post('/rollback', async (req: Request, res: Response): Promise<void> => {
-  const { backupPath } = req.body;
+  try {
+    const { backupPath } = req.body;
 
-  if (!backupPath || typeof backupPath !== 'string') {
-    res.status(400).json({ error: 'Missing required field: backupPath' });
-    return;
+    if (!backupPath || typeof backupPath !== 'string') {
+      res.status(400).json({ error: 'Missing required field: backupPath' });
+      return;
+    }
+
+    const success = await rollback(backupPath);
+    res.json({ success });
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
   }
-
-  const success = await rollback(backupPath);
-  res.json({ success });
 });
 
 export default router;
