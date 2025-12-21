@@ -69,4 +69,5 @@ export interface CategorizedModel extends OpenRouterModel {
   pricePerMillionPrompt: number;
   pricePerMillionCompletion: number;
   isFree: boolean;
+  isExacto: boolean; // Models with :exacto suffix - optimized for tool use
 }

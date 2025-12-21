@@ -54,6 +54,7 @@ export function enrichModel(model: OpenRouterModel): CategorizedModel {
     pricePerMillionPrompt: pricePerMillion(model.pricing.prompt),
     pricePerMillionCompletion: pricePerMillion(model.pricing.completion),
     isFree: model.pricing.prompt === '0' && model.pricing.completion === '0',
+    isExacto: model.id.includes(':exacto'), // Exacto variants - optimized for agentic/tool use
   };
 }
 
@@ -82,6 +83,27 @@ export function searchModels(
       model.name.toLowerCase().includes(q) ||
       model.description?.toLowerCase().includes(q)
     );
+  });
+}
+
+/**
+ * Sort models with priority: Free > Exacto > Regular
+ * Within each tier, sort by name alphabetically
+ */
+export function sortModelsByPriority(models: CategorizedModel[]): CategorizedModel[] {
+  return [...models].sort((a, b) => {
+    // Priority 1: Free models first
+    if (a.isFree && !b.isFree) return -1;
+    if (!a.isFree && b.isFree) return 1;
+
+    // Priority 2: Exacto models second (only if both not free)
+    if (!a.isFree && !b.isFree) {
+      if (a.isExacto && !b.isExacto) return -1;
+      if (!a.isExacto && b.isExacto) return 1;
+    }
+
+    // Same tier: sort by name
+    return a.name.localeCompare(b.name);
   });
 }
 

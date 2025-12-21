@@ -13,6 +13,7 @@ import { Search, RefreshCw, Loader2, Sparkles } from 'lucide-react';
 import { useOpenRouterCatalog, useRefreshOpenRouterModels } from '@/hooks/use-openrouter-models';
 import {
   searchModels,
+  sortModelsByPriority,
   formatPricingPair,
   formatContextLength,
   formatModelAge,
@@ -56,7 +57,7 @@ export function OpenRouterModelPicker({
   // Determine if we should show presets (no search query and no category filter)
   const showPresets = !search.trim() && !selectedCategory;
 
-  // Group by category
+  // Group by category and sort each group by priority (Free > Exacto > Regular)
   const groupedModels = useMemo(() => {
     const groups: Record<ModelCategory, CategorizedModel[]> = {
       anthropic: [],
@@ -71,6 +72,11 @@ export function OpenRouterModelPicker({
     filteredModels.forEach((model) => {
       groups[model.category].push(model);
     });
+
+    // Sort each category by priority
+    for (const category of Object.keys(groups) as ModelCategory[]) {
+      groups[category] = sortModelsByPriority(groups[category]);
+    }
 
     return groups;
   }, [filteredModels]);
@@ -275,6 +281,21 @@ function ModelItem({
           >
             Free
           </Badge>
+        ) : model.isExacto ? (
+          <>
+            <Badge
+              variant="outline"
+              className={cn(
+                'text-[10px] px-1 border-emerald-500/50 text-emerald-600',
+                isSelected
+                  ? 'border-accent-foreground/30 text-accent-foreground/80'
+                  : 'group-hover:border-accent-foreground/30 group-hover:text-accent-foreground/80'
+              )}
+            >
+              Exacto
+            </Badge>
+            <span className="tabular-nums">{formatPricingPair(model.pricing)}</span>
+          </>
         ) : (
           <span className="tabular-nums">{formatPricingPair(model.pricing)}</span>
         )}
