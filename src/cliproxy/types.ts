@@ -114,8 +114,10 @@ export interface DownloadResult {
  * - agy: Antigravity via OAuth (short name for easy usage)
  * - qwen: Qwen Code via OAuth (qwen3-coder)
  * - iflow: iFlow via OAuth
+ * - kiro: Kiro (AWS CodeWhisperer) via OAuth
+ * - copilot: GitHub Copilot via Device Code
  */
-export type CLIProxyProvider = 'gemini' | 'codex' | 'agy' | 'qwen' | 'iflow';
+export type CLIProxyProvider = 'gemini' | 'codex' | 'agy' | 'qwen' | 'iflow' | 'kiro' | 'copilot';
 
 /**
  * CLIProxy config.yaml structure (minimal)

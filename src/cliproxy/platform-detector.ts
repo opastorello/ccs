@@ -8,10 +8,11 @@
 import { PlatformInfo, SupportedOS, SupportedArch, ArchiveExtension } from './types';
 
 /**
- * CLIProxyAPI fallback version (used when GitHub API unavailable)
+ * CLIProxyAPIPlus fallback version (used when GitHub API unavailable)
  * Auto-update fetches latest from GitHub; this is only a safety net
+ * Note: CLIProxyAPIPlus uses v6.6.X-0 suffix pattern
  */
-export const CLIPROXY_FALLBACK_VERSION = '6.5.53';
+export const CLIPROXY_FALLBACK_VERSION = '6.6.40-0';
 
 /** @deprecated Use CLIPROXY_FALLBACK_VERSION instead */
 export const CLIPROXY_VERSION = CLIPROXY_FALLBACK_VERSION;

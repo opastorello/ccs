@@ -58,7 +58,7 @@ export type OAuthAccounts = Record<string, string>;
  */
 export interface CLIProxyVariantConfig {
   /** Base provider to use */
-  provider: 'gemini' | 'codex' | 'agy' | 'qwen' | 'iflow';
+  provider: 'gemini' | 'codex' | 'agy' | 'qwen' | 'iflow' | 'kiro' | 'copilot';
   /** Account nickname (references oauth_accounts) */
   account?: string;
   /** Path to settings file (e.g., "~/.ccs/gemini-custom.settings.json") */
