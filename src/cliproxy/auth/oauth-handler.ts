@@ -126,7 +126,7 @@ export async function triggerOAuth(
   options: OAuthOptions = {}
 ): Promise<AccountInfo | null> {
   const oauthConfig = getOAuthConfig(provider);
-  const { verbose = false, add = false, nickname, fromUI = false, noIncognito = false } = options;
+  const { verbose = false, add = false, nickname, fromUI = false, noIncognito = true } = options;
   const callbackPort = OAUTH_PORTS[provider];
   const isCLI = !fromUI;
   const headless = options.headless ?? isHeadlessEnvironment();
