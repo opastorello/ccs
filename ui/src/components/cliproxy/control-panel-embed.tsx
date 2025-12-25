@@ -15,8 +15,10 @@ import type { CliproxyServerConfig } from '@/lib/api-client';
 /** CLIProxyAPI default port */
 const CLIPROXY_DEFAULT_PORT = 8317;
 
-/** CCS Control Panel secret - must match config-generator.ts CCS_CONTROL_PANEL_SECRET */
-const CCS_CONTROL_PANEL_SECRET = 'ccs';
+interface AuthTokensResponse {
+  apiKey: { value: string; isCustom: boolean };
+  managementSecret: { value: string; isCustom: boolean };
+}
 
 interface ControlPanelEmbedProps {
   port?: number;
@@ -33,6 +35,17 @@ export function ControlPanelEmbed({ port = CLIPROXY_DEFAULT_PORT }: ControlPanel
   const { data: cliproxyConfig, error: configError } = useQuery<CliproxyServerConfig>({
     queryKey: ['cliproxy-server-config'],
     queryFn: () => api.cliproxyServer.get(),
+    staleTime: 30000, // 30 seconds
+  });
+
+  // Fetch auth tokens for local mode (gets effective management secret)
+  const { data: authTokens } = useQuery<AuthTokensResponse>({
+    queryKey: ['auth-tokens-raw'],
+    queryFn: async () => {
+      const response = await fetch('/api/settings/auth/tokens/raw');
+      if (!response.ok) throw new Error('Failed to fetch auth tokens');
+      return response.json();
+    },
     staleTime: 30000, // 30 seconds
   });
 
@@ -67,15 +80,16 @@ export function ControlPanelEmbed({ port = CLIPROXY_DEFAULT_PORT }: ControlPanel
       };
     }
 
-    // Local mode
+    // Local mode - use effective management secret from auth tokens API
+    const effectiveSecret = authTokens?.managementSecret?.value || 'ccs';
     return {
       managementUrl: `http://localhost:${port}/management.html`,
       checkUrl: `http://localhost:${port}/`,
-      authToken: CCS_CONTROL_PANEL_SECRET,
+      authToken: effectiveSecret,
       isRemote: false,
       displayHost: `localhost:${port}`,
     };
-  }, [cliproxyConfig, port]);
+  }, [cliproxyConfig, authTokens, port]);
 
   // Check if CLIProxy is running
   useEffect(() => {
