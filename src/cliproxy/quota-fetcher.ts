@@ -456,17 +456,23 @@ export async function fetchAccountQuota(
 
   // Determine which access token to use
   // File-based token is often stale (CLIProxyAPIPlus refreshes at runtime but doesn't persist)
-  // If we have refresh_token, proactively refresh to get a fresh access_token
+  // Proactive refresh: refresh 5 minutes before expiry (matches CLIProxyAPIPlus behavior)
   let accessToken = authData.accessToken;
+  const REFRESH_LEAD_TIME_MS = 5 * 60 * 1000; // 5 minutes
 
   if (authData.refreshToken) {
-    // Always refresh to ensure we have a valid token
-    // This is necessary because CLIProxyAPIPlus doesn't persist refreshed tokens
-    const refreshResult = await refreshAccessToken(authData.refreshToken);
-    if (refreshResult.accessToken) {
-      accessToken = refreshResult.accessToken;
+    const shouldRefresh =
+      authData.isExpired || // Already expired
+      !authData.expiresAt || // No expiry info - refresh to be safe
+      new Date(authData.expiresAt).getTime() - Date.now() < REFRESH_LEAD_TIME_MS; // Expiring soon
+
+    if (shouldRefresh) {
+      const refreshResult = await refreshAccessToken(authData.refreshToken);
+      if (refreshResult.accessToken) {
+        accessToken = refreshResult.accessToken;
+      }
+      // If refresh fails, fall back to existing token (might still work)
     }
-    // If refresh fails, fall back to existing token (might still work)
   }
 
   // Get project ID - prefer stored value, fallback to API call
