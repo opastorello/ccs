@@ -13,32 +13,20 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { User, Star, MoreHorizontal, Clock, Trash2, Loader2 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import {
+  User,
+  Star,
+  MoreHorizontal,
+  Clock,
+  Trash2,
+  Loader2,
+  CheckCircle2,
+  HelpCircle,
+} from 'lucide-react';
+import { cn, sortModelsByPriority, formatResetTime, getEarliestResetTime } from '@/lib/utils';
 import { PRIVACY_BLUR_CLASS } from '@/contexts/privacy-context';
-import { useAccountQuota } from '@/hooks/use-cliproxy-stats';
+import { useAccountQuota, useCliproxyStats } from '@/hooks/use-cliproxy-stats';
 import type { AccountItemProps } from './types';
-
-/**
- * Format reset time as relative time (e.g., "in 2 hours")
- */
-function formatResetTime(resetTime: string | null): string | null {
-  if (!resetTime) return null;
-  try {
-    const reset = new Date(resetTime);
-    const now = new Date();
-    const diff = reset.getTime() - now.getTime();
-    if (diff <= 0) return 'soon';
-
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-
-    if (hours > 0) return `in ${hours}h ${minutes}m`;
-    return `in ${minutes}m`;
-  } catch {
-    return null;
-  }
-}
 
 /**
  * Get color class based on quota percentage
@@ -49,6 +37,45 @@ function getQuotaColor(percentage: number): string {
   return 'bg-green-500';
 }
 
+/**
+ * Format relative time (e.g., "5m ago", "2h ago")
+ */
+function formatRelativeTime(dateStr: string | undefined): string {
+  if (!dateStr) return '';
+  try {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    if (diff < 0) return 'just now';
+
+    const minutes = Math.floor(diff / (1000 * 60));
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+
+    if (days > 0) return `${days}d ago`;
+    if (hours > 0) return `${hours}h ago`;
+    if (minutes > 0) return `${minutes}m ago`;
+    return 'just now';
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * Check if account was used recently (within last hour = token likely refreshed)
+ */
+function isRecentlyUsed(lastUsedAt: string | undefined): boolean {
+  if (!lastUsedAt) return false;
+  try {
+    const lastUsed = new Date(lastUsedAt);
+    const now = new Date();
+    const diff = now.getTime() - lastUsed.getTime();
+    return diff < 60 * 60 * 1000; // Within last hour
+  } catch {
+    return false;
+  }
+}
+
 export function AccountItem({
   account,
   onSetDefault,
@@ -57,12 +84,19 @@ export function AccountItem({
   privacyMode,
   showQuota,
 }: AccountItemProps) {
+  // Fetch runtime stats to get actual lastUsedAt (more accurate than file state)
+  const { data: stats } = useCliproxyStats(showQuota && account.provider === 'agy');
+
   // Fetch quota for 'agy' provider accounts
   const { data: quota, isLoading: quotaLoading } = useAccountQuota(
     account.provider,
     account.id,
     showQuota && account.provider === 'agy'
   );
+
+  // Get last used time from runtime stats (more accurate than file)
+  const runtimeLastUsed = stats?.accountStats?.[account.email || account.id]?.lastUsedAt;
+  const wasRecentlyUsed = isRecentlyUsed(runtimeLastUsed);
 
   // Calculate average quota across all models
   const avgQuota =
@@ -72,16 +106,7 @@ export function AccountItem({
 
   // Get earliest reset time
   const nextReset =
-    quota?.success && quota.models.length > 0
-      ? quota.models.reduce(
-          (earliest, m) => {
-            if (!m.resetTime) return earliest;
-            if (!earliest) return m.resetTime;
-            return new Date(m.resetTime) < new Date(earliest) ? m.resetTime : earliest;
-          },
-          null as string | null
-        )
-      : null;
+    quota?.success && quota.models.length > 0 ? getEarliestResetTime(quota.models) : null;
 
   return (
     <div
@@ -155,36 +180,65 @@ export function AccountItem({
               <span>Loading quota...</span>
             </div>
           ) : avgQuota !== null ? (
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div className="flex items-center gap-2">
-                    <Progress
-                      value={avgQuota}
-                      className="h-2 flex-1"
-                      indicatorClassName={getQuotaColor(avgQuota)}
-                    />
-                    <span className="text-xs font-medium w-10 text-right">{avgQuota}%</span>
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" className="max-w-xs">
-                  <div className="text-xs space-y-1">
-                    <p className="font-medium">Model Quotas:</p>
-                    {quota?.models.map((m) => (
-                      <div key={m.name} className="flex justify-between gap-4">
-                        <span className="truncate">{m.displayName || m.name}</span>
-                        <span className="font-mono">{m.percentage}%</span>
-                      </div>
-                    ))}
-                    {nextReset && (
-                      <p className="text-muted-foreground mt-1">
-                        Resets {formatResetTime(nextReset)}
-                      </p>
-                    )}
-                  </div>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <div className="space-y-1.5">
+              {/* Status indicator based on runtime usage, not file state */}
+              <div className="flex items-center gap-1.5 text-xs">
+                {wasRecentlyUsed ? (
+                  <>
+                    <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+                    <span className="text-emerald-600 dark:text-emerald-400">
+                      Active · {formatRelativeTime(runtimeLastUsed)}
+                    </span>
+                  </>
+                ) : runtimeLastUsed ? (
+                  <>
+                    <Clock className="w-3 h-3 text-muted-foreground" />
+                    <span className="text-muted-foreground">
+                      Last used {formatRelativeTime(runtimeLastUsed)}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <HelpCircle className="w-3 h-3 text-muted-foreground" />
+                    <span className="text-muted-foreground">Not used yet</span>
+                  </>
+                )}
+              </div>
+              {/* Quota bar */}
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex items-center gap-2">
+                      <Progress
+                        value={avgQuota}
+                        className="h-2 flex-1"
+                        indicatorClassName={getQuotaColor(avgQuota)}
+                      />
+                      <span className="text-xs font-medium w-10 text-right">{avgQuota}%</span>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="max-w-xs">
+                    <div className="text-xs space-y-1">
+                      <p className="font-medium">Model Quotas:</p>
+                      {sortModelsByPriority(quota?.models || []).map((m) => (
+                        <div key={m.name} className="flex justify-between gap-4">
+                          <span className="truncate">{m.displayName || m.name}</span>
+                          <span className="font-mono">{m.percentage}%</span>
+                        </div>
+                      ))}
+                      {nextReset && (
+                        <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-border/50">
+                          <Clock className="w-3 h-3 text-blue-400" />
+                          <span className="text-blue-400 font-medium">
+                            Resets {formatResetTime(nextReset)}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
           ) : quota?.error ? (
             <div className="text-xs text-muted-foreground">{quota.error}</div>
           ) : null}

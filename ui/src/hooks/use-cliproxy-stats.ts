@@ -221,8 +221,8 @@ export function useAccountQuota(provider: string, accountId: string, enabled = t
     queryKey: ['account-quota', provider, accountId],
     queryFn: () => fetchAccountQuota(provider, accountId),
     enabled: enabled && provider === 'agy' && !!accountId,
-    staleTime: 60000, // Cache for 1 minute
-    refetchInterval: 300000, // Refresh every 5 minutes
+    staleTime: 30000, // Consider stale after 30s (tokens can refresh anytime)
+    refetchInterval: 60000, // Refresh every 1 minute
     retry: 1,
   });
 }

@@ -34,6 +34,10 @@ export interface QuotaResult {
   isForbidden?: boolean;
   /** Error message if fetch failed */
   error?: string;
+  /** True if token is expired and needs re-auth */
+  isExpired?: boolean;
+  /** ISO timestamp when token expires/expired */
+  expiresAt?: string;
 }
 
 /** Google Cloud Code API endpoints */
@@ -56,6 +60,15 @@ interface AntigravityAuthFile {
   expires_in?: number;
   timestamp?: number;
   type?: string;
+  project_id?: string;
+}
+
+/** Auth data returned from file */
+interface AuthData {
+  accessToken: string;
+  projectId: string | null;
+  isExpired: boolean;
+  expiresAt: string | null;
 }
 
 /** loadCodeAssist response */
@@ -89,9 +102,30 @@ interface FetchAvailableModelsResponse {
 }
 
 /**
- * Read access token from auth file
+ * Sanitize email to match CLIProxyAPI auth file naming convention
+ * Replaces @ and . with underscores (matches Go sanitizeAntigravityFileName)
  */
-function readAccessToken(provider: CLIProxyProvider, accountId: string): string | null {
+function sanitizeEmail(email: string): string {
+  return email.replace(/@/g, '_').replace(/\./g, '_');
+}
+
+/**
+ * Check if token is expired based on the expired timestamp
+ */
+function isTokenExpired(expiredStr?: string): boolean {
+  if (!expiredStr) return false;
+  try {
+    const expiredDate = new Date(expiredStr);
+    return expiredDate.getTime() < Date.now();
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Read auth data from auth file (access token, project_id, expiry status)
+ */
+function readAuthData(provider: CLIProxyProvider, accountId: string): AuthData | null {
   const authDir = getAuthDir();
 
   // Check if auth directory exists
@@ -99,24 +133,48 @@ function readAccessToken(provider: CLIProxyProvider, accountId: string): string 
     return null;
   }
 
-  // Account ID format: email with @ and . replaced by _
-  // Try to find matching token file
-  const files = fs.readdirSync(authDir);
+  // Sanitize accountId (email) to match auth file naming: @ and . → _
+  const sanitizedId = sanitizeEmail(accountId);
   const prefix = provider === 'agy' ? 'antigravity-' : `${provider}-`;
+  const expectedFile = `${prefix}${sanitizedId}.json`;
+  const filePath = path.join(authDir, expectedFile);
 
+  // Direct file access (most common case)
+  if (fs.existsSync(filePath)) {
+    try {
+      const content = fs.readFileSync(filePath, 'utf-8');
+      const data = JSON.parse(content) as AntigravityAuthFile;
+      if (!data.access_token) return null;
+      return {
+        accessToken: data.access_token,
+        projectId: data.project_id || null,
+        isExpired: isTokenExpired(data.expired),
+        expiresAt: data.expired || null,
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  // Fallback: scan directory for matching email in file content
+  const files = fs.readdirSync(authDir);
   for (const file of files) {
     if (file.startsWith(prefix) && file.endsWith('.json')) {
-      // Check if this file matches the account ID
-      const baseName = file.replace(prefix, '').replace('.json', '');
-      if (baseName === accountId || file === accountId || file === `${accountId}.json`) {
-        const filePath = path.join(authDir, file);
-        try {
-          const content = fs.readFileSync(filePath, 'utf-8');
-          const data = JSON.parse(content) as AntigravityAuthFile;
-          return data.access_token || null;
-        } catch {
-          return null;
+      const candidatePath = path.join(authDir, file);
+      try {
+        const content = fs.readFileSync(candidatePath, 'utf-8');
+        const data = JSON.parse(content) as AntigravityAuthFile;
+        // Match by email field inside the auth file
+        if (data.email === accountId && data.access_token) {
+          return {
+            accessToken: data.access_token,
+            projectId: data.project_id || null,
+            isExpired: isTokenExpired(data.expired),
+            expiresAt: data.expired || null,
+          };
         }
+      } catch {
+        continue;
       }
     }
   }
@@ -127,7 +185,9 @@ function readAccessToken(provider: CLIProxyProvider, accountId: string): string 
 /**
  * Get project ID via loadCodeAssist endpoint
  */
-async function getProjectId(accessToken: string): Promise<string | null> {
+async function getProjectId(
+  accessToken: string
+): Promise<{ projectId: string | null; error?: string }> {
   const url = `${ANTIGRAVITY_API_BASE}/${ANTIGRAVITY_API_VERSION}:loadCodeAssist`;
 
   const controller = new AbortController();
@@ -153,7 +213,14 @@ async function getProjectId(accessToken: string): Promise<string | null> {
     clearTimeout(timeoutId);
 
     if (!response.ok) {
-      return null;
+      // Return specific error based on status
+      if (response.status === 401) {
+        return { projectId: null, error: 'Token expired or invalid' };
+      }
+      if (response.status === 403) {
+        return { projectId: null, error: 'Access forbidden' };
+      }
+      return { projectId: null, error: `API error: ${response.status}` };
     }
 
     const data = (await response.json()) as LoadCodeAssistResponse;
@@ -166,10 +233,17 @@ async function getProjectId(accessToken: string): Promise<string | null> {
       projectId = data.cloudaicompanionProject?.id;
     }
 
-    return projectId?.trim() || null;
-  } catch {
+    if (!projectId?.trim()) {
+      return { projectId: null, error: 'No project ID in response' };
+    }
+
+    return { projectId: projectId.trim() };
+  } catch (err) {
     clearTimeout(timeoutId);
-    return null;
+    if (err instanceof Error && err.name === 'AbortError') {
+      return { projectId: null, error: 'Request timeout' };
+    }
+    return { projectId: null, error: err instanceof Error ? err.message : 'Unknown error' };
   }
 }
 
@@ -275,7 +349,7 @@ async function fetchAvailableModels(accessToken: string, projectId: string): Pro
  * Fetch quota for an Antigravity account
  *
  * @param provider - Provider name (only 'agy' supported)
- * @param accountId - Account identifier (email with _ replacing @ and .)
+ * @param accountId - Account identifier (email)
  * @returns Quota result with models and percentages
  */
 export async function fetchAccountQuota(
@@ -292,28 +366,44 @@ export async function fetchAccountQuota(
     };
   }
 
-  // Read access token from auth file
-  const accessToken = readAccessToken(provider, accountId);
-  if (!accessToken) {
+  // Read auth data from auth file
+  const authData = readAuthData(provider, accountId);
+  if (!authData) {
     return {
       success: false,
       models: [],
       lastUpdated: Date.now(),
-      error: 'Access token not found for account',
+      error: 'Auth file not found for account',
     };
   }
 
-  // Get project ID first
-  const projectId = await getProjectId(accessToken);
-  if (!projectId) {
+  // Check if token is expired
+  if (authData.isExpired) {
     return {
       success: false,
       models: [],
       lastUpdated: Date.now(),
-      error: 'Failed to retrieve project ID',
+      isExpired: true,
+      expiresAt: authData.expiresAt || undefined,
+      error: 'Token expired',
     };
+  }
+
+  // Get project ID - prefer stored value, fallback to API call
+  let projectId = authData.projectId;
+  if (!projectId) {
+    const projectResult = await getProjectId(authData.accessToken);
+    if (!projectResult.projectId) {
+      return {
+        success: false,
+        models: [],
+        lastUpdated: Date.now(),
+        error: projectResult.error || 'Failed to retrieve project ID',
+      };
+    }
+    projectId = projectResult.projectId;
   }
 
   // Fetch models with quota
-  return fetchAvailableModels(accessToken, projectId);
+  return fetchAvailableModels(authData.accessToken, projectId);
 }
