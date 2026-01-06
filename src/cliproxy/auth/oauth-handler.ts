@@ -76,8 +76,15 @@ async function promptNickname(
   }
 
   return new Promise<string | null>((resolve) => {
-    // Handle Ctrl+C gracefully
-    rl.on('close', () => resolve(null));
+    let resolved = false;
+
+    // Handle Ctrl+C gracefully (only if not already resolved)
+    rl.on('close', () => {
+      if (!resolved) {
+        resolved = true;
+        resolve(null);
+      }
+    });
 
     const askForNickname = () => {
       rl.question('[?] Enter a nickname for this account: ', (answer) => {
@@ -102,6 +109,7 @@ async function promptNickname(
           return;
         }
 
+        resolved = true;
         rl.close();
         resolve(nickname);
       });
