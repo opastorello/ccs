@@ -148,15 +148,17 @@ jobs:
             > 🤖 Reviewed by `${{ env.REVIEW_MODEL }}`
 
             ## IMPORTANT: Posting the Review
-            After completing your analysis, post the review as a PR comment using:
-            ```bash
-            gh pr comment ${{ github.event.pull_request.number || github.event.issue.number || github.event.inputs.pr_number }} --body "YOUR_REVIEW"
-            ```
-            You may use heredocs, pipes, or --body-file as needed for multi-line content.
+            After completing your analysis, post the review as a PR comment.
+
+            REQUIRED METHOD (use Write tool + --body-file):
+            1. Write your review to /tmp/pr_review.md using the Write tool
+            2. Post with: gh pr comment ${{ github.event.pull_request.number || github.event.issue.number || github.event.inputs.pr_number }} --body-file /tmp/pr_review.md
+
+            DO NOT use inline --body with multiline content - it will fail pattern matching.
 
           claude_args: |
             --model ${{ env.REVIEW_MODEL }}
-            --allowedTools "Bash(gh pr comment *),Bash(gh pr diff *),Bash(gh pr view *),Bash(echo *),Bash(cat *),Read,Glob,Grep"
+            --allowedTools "Bash(gh pr comment *),Bash(gh pr diff *),Bash(gh pr view *),Bash(echo *),Write,Read,Glob,Grep"
         continue-on-error: true
 
       - name: Add success reaction
