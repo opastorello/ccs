@@ -1,3 +1,20 @@
+## [7.21.0](https://github.com/kaitranntt/ccs/compare/v7.20.1...v7.21.0) (2026-01-14)
+
+### Features
+
+* **dashboard:** implement full parity UX improvements ([bd5e9d2](https://github.com/kaitranntt/ccs/commit/bd5e9d2b78b7348443770de3f4e5848390ff34fd))
+
+### Bug Fixes
+
+* **dashboard:** address code review feedback for PR [#336](https://github.com/kaitranntt/ccs/issues/336) ([e808972](https://github.com/kaitranntt/ccs/commit/e808972df0e3ce1987bb3b5a346add3e6d592b56))
+* **dashboard:** resolve 6 critical security and UX edge cases ([623a314](https://github.com/kaitranntt/ccs/commit/623a3146d775b9666218343a0dc39434b77dd24d))
+* **dashboard:** resolve edge cases in backup restore and settings UI ([2e45447](https://github.com/kaitranntt/ccs/commit/2e45447bb7c6bb48337076871d78a152bfb79880))
+* **persist:** add rate limiting, tests, and code quality improvements ([7b80dcc](https://github.com/kaitranntt/ccs/commit/7b80dccdd312fc6651ce03524699a30b8310c998)), closes [#339](https://github.com/kaitranntt/ccs/issues/339)
+
+### Documentation
+
+* update minimax preset references to 'mm' ([eee62a4](https://github.com/kaitranntt/ccs/commit/eee62a46a23f925e7ee891ef0c0ee5ca2271a462))
+
 ## [7.20.1](https://github.com/kaitranntt/ccs/compare/v7.20.0...v7.20.1) (2026-01-14)
 
 ### Bug Fixes
