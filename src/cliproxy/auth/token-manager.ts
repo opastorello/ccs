@@ -230,12 +230,14 @@ export function registerAccountFromToken(
     const content = fs.readFileSync(tokenPath, 'utf-8');
     const data = JSON.parse(content);
     const email = data.email || undefined;
+    const projectId = data.project_id || undefined;
 
     const account = registerAccount(
       provider,
       newestFile,
       email,
-      nickname || generateNickname(email)
+      nickname || generateNickname(email),
+      projectId
     );
 
     // Upload token to remote server if configured (async, don't block)

@@ -313,6 +313,13 @@ describe('HttpsTunnelProxy', () => {
 
       // Create a connection
       const socket = new (await import('net')).Socket();
+
+      // Track when the socket closes (from server-side destroy)
+      let socketClosed = false;
+      socket.on('close', () => {
+        socketClosed = true;
+      });
+
       const connectPromise = new Promise<void>((resolve, reject) => {
         socket.connect(port, '127.0.0.1', () => resolve());
         socket.on('error', reject);
@@ -323,13 +330,18 @@ describe('HttpsTunnelProxy', () => {
       // Stop should forcefully close connections
       tunnel.stop();
 
-      // Socket should be destroyed (allow more time for CI environments)
-      // Wait up to 500ms for socket to be destroyed
-      for (let i = 0; i < 10; i++) {
-        if (socket.destroyed) break;
+      // Wait for close event (server destroys connection, client receives close)
+      // Allow up to 1000ms for CI environments with higher latency
+      for (let i = 0; i < 20; i++) {
+        if (socketClosed || socket.destroyed) break;
         await new Promise((resolve) => setTimeout(resolve, 50));
       }
-      expect(socket.destroyed).toBe(true);
+      expect(socketClosed || socket.destroyed).toBe(true);
+
+      // Clean up client socket if not already destroyed
+      if (!socket.destroyed) {
+        socket.destroy();
+      }
     });
   });
 
